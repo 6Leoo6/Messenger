@@ -1,0 +1,53 @@
+body {
+    background-color: lightblue;
+}
+h1 {
+    text-align: center;
+    font-weight: lighter;
+}
+p {
+    text-align: center;
+    margin-bottom: 5px;
+}
+input {
+    border-radius: 3px;
+    border: 2px solid gray;
+}
+#main-div {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-color: white;
+    margin: 200px auto;
+    padding: 20px 20px; 
+    width: min-content;
+    border: 2px solid gray;
+    border-top: 4px solid black;
+}
+#login-div {
+    display: flex;
+    flex-direction: column;
+    row-gap: 10px;
+    width: 300px;
+    margin: 20px auto;
+}
+#login-btn {
+    text-align: center;
+    padding: 10px 20px;
+    background-color: rgb(33, 152, 192);
+    width: min-content;
+    margin: 15px auto;
+    animation-duration: 0.5s;
+    -webkit-transition: background-color 300ms linear;
+    -moz-transition: background-color 300ms linear;
+    -o-transition: background-color 300ms linear;
+    -ms-transition: background-color 300ms linear;
+    transition: background-color 300ms linear;
+}
+#login-btn:hover {
+    cursor: pointer;
+    background-color: lightblue;
+}
+#login-btn:active {
+    background-color: black;
+}
