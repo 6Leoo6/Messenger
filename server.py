@@ -7,7 +7,8 @@ from typing import List
 from json import loads, dumps
 import time
 
-import database as db
+from database import db
+
 
 app = FastAPI()
 
@@ -84,14 +85,13 @@ async def websocket_endpoint(websocket: WebSocket, id: str, password: str):
             
             if data['d']: await manager.broadcast(data, websocket)
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
-        await manager.broadcast(f"Client #{id} left the chat")
+        print(f'Client {id} disconnected')
 
 #--------------------------------------API Requests--------------------------------------
 @app.post('/api/register')
 def register(firstN: str, lastN: str, userN: str, email: str, password: str):
     ret = db.registerUser(firstN, lastN, userN, email, password)
-    if ret not in ['firstN', 'lastN', 'userN', 'email1', 'email2', 'password']: return {'status': 201, 'id':ret}
+    if ret not in ['firstN', 'lastN', 'userN', 'userNot' 'email1', 'email2', 'password']: return {'status': 201, 'id':ret}
     return {'status': 400, 'error': ret}
 
 @app.post('/api/login')
@@ -121,6 +121,10 @@ def handle_friend_req(id: str, password: str, idTo: str, action: str):
     if action not in ['accept', 'cancel', 'decline']: return {'status': 400, 'error':'action'}
     res = db.handleFriendReq(id, password, idTo, action)
     return {'status': 400, 'error': res} if res != 200 else {'status': res}
+
+@app.post('/api/get_messages')
+def get_messages(id: str, password: str, chatId: str, numberOfLogs: int):
+    res = db.getMsgs()
 
 
 

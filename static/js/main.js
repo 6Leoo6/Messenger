@@ -68,14 +68,18 @@ async function visualizeReqs() {
 async function calculateFriendDiv() {
     await getUserData()
     var user = JSON.parse(window.localStorage.getItem("user"))
+    var namesById = JSON.parse(window.localStorage.getItem("namesbyid"))
     var inc = ''
     var out = ''
     for (const [key, value] of Object.entries(user['friend_req'])) {
-        var url = new URL(location.origin + "/api/get_usern_by_id")
-        url.searchParams.set("id", key)
-        var res = await fetch(url, { method: "POST" })
-        res = await res.json()
-        if (res['status'] == 400) { continue }
+        if(namesById[key] == '') {
+            var url = new URL(location.origin + "/api/get_usern_by_id")
+            url.searchParams.set("id", key)
+            var res = await fetch(url, { method: "POST" })
+            res = await res.json()
+            if (res['status'] == 400) { continue }
+        }
+        
 
         if (value == "incoming") {
             inc += `

@@ -70,8 +70,11 @@ async function register() {
         else if(error == 'lastN') {
             resToUser = 'A keresztneved nem tartalmazhat 32 karakternél többet vagy az ABC-ben nem szereplő betűt'
         }
-        else if(error == 'username') {
+        else if(error == 'userN') {
             resToUser = 'A fehasználóneved nem tartalmazhat 16 karakternél többet'
+        }
+        else if(error  == 'userNot') {
+            resToUser == 'Ez a felhasználónév már használatban van'
         }
         else if(error == 'email1') {
             resToUser = 'Ez az email már használatban van'
