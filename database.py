@@ -71,7 +71,7 @@ class DB():
         if  emailProblem != True: return emailProblem
         if len(password) < 8 or len(password) > 32 or password.isdigit() or password.isalpha(): return 'password'
 
-        self.user_conn.execute('INSERT INTO users values (?,?,?,?,?,?,?,?,?,?)', [firstN, lastN, id, username, email, password, {}, {}, {}, {}])
+        self.user_conn.execute('INSERT INTO users values (?,?,?,?,?,?,?,?,?,?)', [firstN, lastN, id, username, email, password, '{}', '{}', '{}', '{}'])
         #self.user_conn.commit()
         return id
 

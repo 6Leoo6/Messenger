@@ -1,5 +1,4 @@
 var howManyLoaded = {}
-var messageList = {}
 
 
 function changeList(id) {
@@ -73,17 +72,20 @@ async function calculateFriendDiv() {
     await getUserData()
     var user = JSON.parse(window.localStorage.getItem("user"))
     var namesById = JSON.parse(window.localStorage.getItem("namesbyid"))
+    if(namesById == null){
+        window.localStorage.setItem("namesbyid", "{}")
+    }
+    var namesById = JSON.parse(window.localStorage.getItem("namesbyid"))
     var inc = ''
     var out = ''
     for (const [key, value] of Object.entries(user['friend_req'])) {
-        if(namesById[key] == '') {
+        if(namesById[key] == undefined) {
             var url = new URL(location.origin + "/api/get_usern_by_id")
             url.searchParams.set("id", key)
             var res = await fetch(url, { method: "POST" })
             res = await res.json()
             if (res['status'] == 400) { continue }
         }
-        
 
         if (value == "incoming") {
             inc += `
@@ -244,8 +246,11 @@ async function visualizeFriends() {
         <h2 class="name-title">${name}</h2>
         <table class="message-table" id="${user['contacts'][id]}-msgs"><tbody></tbody></table>
         <form class="message-form" id="${user['contacts'][id]}-send" action="" onsubmit="sendMessage(event, id)">
-          <input type="text" id="${user['contacts'][id]}-msgt" autocomplete="off" />
-          <button>Küldés</button>
+            <div class="msg-form-div">
+                <input type="text" id="${user['contacts'][id]}-msgt" autocomplete="off" placeholder="Írja ide a szöveget"/>
+                <button class="btn btn-dark">Küldés</button>
+            </div>
+          
         </form>
         <ul id="${user['contacts'][id]}-msgs"></ul>
       </div>`
@@ -276,18 +281,13 @@ async function loadChat(chatId) {
     if(howManyLoaded[chatId] == undefined){
         howManyLoaded[chatId] = []
     }
-    if(messageList[chatId] == undefined){
-        messageList[chatId] = []
-    }
-    console.log(messageList)
-    messageList[chatId] = data
     for(log of data) {
         log = JSON.parse(log)
         howManyLoaded[chatId].push(parseInt(log['i']))
         for(var [time, msg] of Object.entries(log['msgs'])){
             msg['t'] = time
             msg['i'] = chatId
-            visualizeMessages(msg, true)
+            visualizeMessages(msg)
         }
     }
 }
@@ -335,7 +335,7 @@ async function visualizeMessages(data) {
             return
         }
     }
-    catch (error) {console.log(error)}
+    catch (error) {}
 
 
     if (user['id'] == data['a']) {
@@ -357,12 +357,59 @@ async function visualizeMessages(data) {
     
 }
 
+async function storeMsgsToStr(data, storeMsgs) {
+    var user = JSON.parse(window.localStorage.getItem("user"))
+    var namesById = JSON.parse(window.localStorage.getItem("namesbyid"))
+    if (!namesById) {
+        window.localStorage.setItem("namesbyid", "{}")
+        namesById = {}
+    }
+    if (!namesById[data['a']]) {
+        var url = new URL(location.origin + "/api/get_usern_by_id")
+        url.searchParams.set("id", data['a'])
+        var res = await fetch(url, { method: "POST" })
+        res = await res.json()
+        if (res['status'] != 400) { namesById[data['a']] = res['name'] }
+        window.localStorage.setItem("namesbyid", JSON.stringify(namesById))
+    }
+
+
+    var msg = `<div class="msg-div" id="${data['a']}-${data['t']}"><p>${data['d']}</p></div>`
+    try {
+        var lastRow = storeMsgs.children.item(0).lastChild
+        if(lastRow == null) {throw 'No rows'}
+        if (lastRow.children.item(0).innerHTML != '' && lastRow.children.item(0).children.item(0).children.item(1).id.split('-')[0] == data['a']) {
+            storeMsgs.children.item(0).lastChild.children.item(0).children.item(0).innerHTML += msg
+            return storeMsgs
+        }
+        else if (lastRow.children.item(1).innerHTML != '' && lastRow.children.item(1).children.item(0).children.item(1).id.split('-')[0] == data['a']) {
+            storeMsgs.children.item(0).lastChild.children.item(1).children.item(0).innerHTML += msg
+            return storeMsgs
+        }
+    }
+    catch (error) {}
+
+
+    if (user['id'] == data['a']) {
+        other_side = ''
+        own_side = `<div class="right">${msg}</div>`
+    }
+    else {
+        other_side = `<div class="left"><p>${namesById[data['a']]}</p>${msg}</div>`
+        own_side = ''
+    }
+    
+    
+    storeMsgs.children.item(0).innerHTML += `<tr><td>${other_side}</td><td>${own_side}</td></tr>`
+    return storeMsgs
+}
+
 
 var user = JSON.parse(window.localStorage.getItem("user"))
 var ws = new WebSocket('ws://' + location.origin.split('//')[1] + `/ws/${user['id']}?password=${user['password']}`)
 ws.onmessage = async function (event) {
     var data = JSON.parse(event.data)
-    visualizeMessages(data, true)
+    visualizeMessages(data)
 };
 function sendMessage(event, id) {
     var user = JSON.parse(window.localStorage.getItem("user"))
@@ -385,16 +432,16 @@ function scrollToBottom(scrollPos, scrollable) {
     }
 }
 
-document.addEventListener('scroll', async function(event) {
+document.addEventListener('wheel', async function(event) {
     const scrollPos = window.scrollY
     const scrollable = document.documentElement.scrollHeight - window.innerHeight
     var mainDiv = document.getElementById('main-div')
     for(child of mainDiv.children){
         if(child.hidden == false && child.classList.contains('chat')) {
             chatId = child.id.split('-')[0]
-            if(scrollPos < 500) {
+            if(scrollPos < 500 && event['deltaY'] < 0) {
                 var nextToLoad = Math.min(...howManyLoaded[chatId])-1
-                if(nextToLoad in howManyLoaded[chatId] || nextToLoad<1){
+                if(howManyLoaded[chatId].includes(nextToLoad) || nextToLoad<1){
                     return
                 }
 
@@ -409,22 +456,22 @@ document.addEventListener('scroll', async function(event) {
                 if (res['status'] == 400) {return}
                 data = res['data']
 
-                var temp = messageList[chatId]
-                messageList[chatId] = data.concat(temp)
-                howManyLoaded[chatId] = []
 
-                var messages = document.getElementById(chatId + '-msgs')
-                messages.children.item(0).innerHTML = ''
-
-                for(log of messageList[chatId]) {
+                var storeMsgs = document.createElement('table')
+                storeMsgs.innerHTML += '<tbody></tbody>'
+                for(log of data) {
                     log = JSON.parse(log)
                     howManyLoaded[chatId].push(parseInt(log['i']))
                     for(var [time, msg] of Object.entries(log['msgs'])){
                         msg['t'] = time
                         msg['i'] = chatId
-                        visualizeMessages(msg, true)
+                        storeMsgs = await storeMsgsToStr(msg, storeMsgs)
                     }
                 }
+                var messages = document.getElementById(chatId + '-msgs')
+                var temp = messages.children.item(0).innerHTML
+
+                messages.children.item(0).innerHTML = storeMsgs.lastChild.innerHTML + temp
                 
                 window.scrollTo(0, scrollPos+Math.abs(scrollable-(document.documentElement.scrollHeight - window.innerHeight)))
             }

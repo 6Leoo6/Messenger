@@ -37,6 +37,7 @@ async function login() {
             'settings': data[8],
             'friend_req': data[9],
         }
+        window.localStorage.clear()
         window.localStorage.setItem('user', JSON.stringify(userData))
         
         await new Promise(r => setTimeout(r, 1500))
