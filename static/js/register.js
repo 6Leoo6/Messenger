@@ -18,10 +18,9 @@ async function register() {
         warning.innerHTML = 'A két jelszó nem egyezik'
         return
     }
-    console.log(lastN, firstN, userN, email, password)
 
     var url = new URL(window.location.origin + '/api/register')
-    console.log(url)
+
     url.searchParams.set('firstN', firstN)
     url.searchParams.set('lastN', lastN)
     url.searchParams.set('userN', userN)
@@ -29,14 +28,11 @@ async function register() {
     url.searchParams.set('password', password)
     var res = await fetch(url, {method:'POST'})
     var data = await res.json()
-    console.log(data)
-
     var resToUser
     var color
 
     if(data['status'] == 201) {
         var id = data['id']
-        console.log(id)
         resToUser = 'Sikeres regisztráció és bejelentkezés!'
         color = 'text-success'
         userData = {
@@ -51,7 +47,6 @@ async function register() {
             'settings': {},
             'friend_req': {},
         }
-        console.log(userData)
         window.localStorage.setItem('user', JSON.stringify(userData))
         document.getElementById('lastN').value = ''
         document.getElementById('firstN').value = ''

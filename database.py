@@ -1,4 +1,6 @@
 from distutils.util import execute
+from msilib.schema import Error
+from click import command
 from sqlite3worker import Sqlite3Worker
 import json
 import random
@@ -10,6 +12,7 @@ class DB():
     def __init__(self):
         self.user_conn = self.connect()
         self.chat_conn = self.connect_chat()
+        self.MAX_MESSAGES = 20
 
     def connect(self):
         conn = Sqlite3Worker(r'users.db')
@@ -172,7 +175,6 @@ class DB():
   
         self.chat_conn.execute(f'CREATE TABLE IF NOT EXISTS {chatId} (number, data)')
         chatdb = self.chat_conn.execute(f'SELECT number FROM {chatId}')
-        print(chatdb)
         if not chatdb:
             self.chat_conn.execute(f'INSERT INTO {chatId} values (?, ?)', [0, json.dumps({'members': sorted([id, idTo]), 'type': 'dm'})])
 
@@ -206,32 +208,46 @@ class DB():
         send_time = data['t']
         data.pop('t')
         chatId = data.pop('i')
-        print(data)
-        MAX_MESSAGES = 20
 
         fetch = self.chat_conn.execute(f'SELECT number FROM {chatId}')
         latestChat = max(list(map(lambda x: x[0], fetch)))
-        print(latestChat)
-        if latestChat == 0 or json.loads(self.chat_conn.execute(f'SELECT data FROM {chatId} WHERE number={latestChat}')[0][0])['n'] == MAX_MESSAGES:
-            self.chat_conn.execute(f'INSERT INTO {chatId} values (?, ?)', [latestChat+1, json.dumps({'n': 0, 'msgs': {}})])
+        if latestChat == 0 or json.loads(self.chat_conn.execute(f'SELECT data FROM {chatId} WHERE number={latestChat}')[0][0])['n'] == self.MAX_MESSAGES:
+            self.chat_conn.execute(f'INSERT INTO {chatId} values (?, ?)', [latestChat+1, json.dumps({'i': latestChat+1, 'n': 0, 'msgs': {}})])
             latestChat += 1
 
         existing = json.loads(self.chat_conn.execute(f'SELECT data FROM {chatId} WHERE number={latestChat}')[0][0])
         existing['msgs'].update({send_time: data})
         existing['n'] += 1
         self.chat_conn.execute(f'UPDATE {chatId} SET data=? WHERE number=?', [json.dumps(existing), latestChat])
-
-        #self.chat_conn.commit()
     
-    def getMsgs(self, id, password, chatId, numberOfLogs):
+    def getMsgs(self, id, password, chatId, logIndex):
+        if logIndex == 0:
+            return 'logIndex'
+        if logIndex == -1:
+            logIndex = max(map(lambda x: int(x[0]), self.chat_conn.execute(f'SELECT number FROM {chatId}')))
+        if logIndex == 0:
+            return 'noMsgs'
+        
         try:
-            correctPass = self.user_conn.execute(f'SELECT password FROM users WHERE id="{id}"')[0]
+            correctPass = self.user_conn.execute(f'SELECT password FROM users WHERE id="{id}"')[0][0]
         except IndexError:
             return 'id'
         if password != correctPass: return 'password'
-        
+        if id not in json.loads(self.chat_conn.execute(f'SELECT data FROM {chatId} WHERE number=0')[0][0])['members']: return 'notM'
+        if not self.chat_conn.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{chatId}'"): return 'chatId'
+        try:
+            twoSegment = False
+            matches = [logIndex, logIndex]
+            if logIndex > 1:
+                matches.append(logIndex-1)
+                twoSegment = True
+            log = list(map(lambda x: x[0], self.chat_conn.execute(f'SELECT data FROM {chatId} WHERE number IN {tuple(matches)}')))
+            if (twoSegment and len(log) == 1) or len(log) == 0: return 'logIndex'
+        except IndexError:
+            return 'logIndex'
+        return log
 
 db = DB()        
 
 if __name__ == '__main__':
-    print(db.searchFriend('Leoo'))
+    print(db.getMsgs('1N4nE92AGSD97D43', 'Titkosjelszo01', 'kopyWpWdiCMGdppk', 2))

@@ -80,11 +80,11 @@ async def websocket_endpoint(websocket: WebSocket, id: str, password: str):
         while True:
             data = await websocket.receive_text()
             data = loads(data)
-            data.update({'t': int(time.time())})
-            print(data)
+            data.update({'t': round(time.time(), 3)})
             
             if data['d']: await manager.broadcast(data, websocket)
     except WebSocketDisconnect:
+        manager.disconnect(websocket)
         print(f'Client {id} disconnected')
 
 #--------------------------------------API Requests--------------------------------------
@@ -123,8 +123,9 @@ def handle_friend_req(id: str, password: str, idTo: str, action: str):
     return {'status': 400, 'error': res} if res != 200 else {'status': res}
 
 @app.post('/api/get_messages')
-def get_messages(id: str, password: str, chatId: str, numberOfLogs: int):
-    res = db.getMsgs()
+def get_messages(id: str, password: str, chatId: str, logIndex: int):
+    res = db.getMsgs(id, password, chatId, logIndex)
+    return {'status': 400, 'error': res} if res in ['logIndex', 'noMsgs', 'id', 'password', 'notM', 'chatId'] else {'status': 200, 'data': res}
 
 
 

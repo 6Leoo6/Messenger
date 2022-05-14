@@ -9,14 +9,12 @@ async function login() {
     email = document.getElementById('email-input').value
     password = document.getElementById('password-input').value
 
-    console.log(email, password)
     var url = new URL(document.location.origin+'/api/login')
     url.searchParams.set('email', email)
     url.searchParams.set('password', password)
 
     var res = await fetch(url, {method: 'POST'})
     var data = await res.json()
-    console.log(data)
 
     var warning = document.getElementById('warning')
     warning.hidden = false

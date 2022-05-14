@@ -1,3 +1,7 @@
+var howManyLoaded = {}
+var messageList = {}
+
+
 function changeList(id) {
     if (id == "user-single") {
         document.getElementById("add-friend").hidden = false
@@ -238,7 +242,7 @@ async function visualizeFriends() {
         friendDivs += `
         <div class="chat" id="${user['contacts'][id]}-chat" hidden>
         <h2 class="name-title">${name}</h2>
-        <table class="message-table" id="${user['contacts'][id]}-msgs"></table>
+        <table class="message-table" id="${user['contacts'][id]}-msgs"><tbody></tbody></table>
         <form class="message-form" id="${user['contacts'][id]}-send" action="" onsubmit="sendMessage(event, id)">
           <input type="text" id="${user['contacts'][id]}-msgt" autocomplete="off" />
           <button>Küldés</button>
@@ -251,24 +255,50 @@ async function visualizeFriends() {
     document.getElementById('main-div').innerHTML += friendDivs
 }
 
-function loadChat(id) {
-    id = id.split('-')[0]
-    console.log(id)
+async function loadChat(chatId) {
+    chatId = chatId.split('-')[0]
     hideChildren(true, document.getElementById('main-div').children)
-    chatDiv = document.getElementById(id + '-chat')
+    chatDiv = document.getElementById(chatId + '-chat')
     chatDiv.hidden = false
+    var user = JSON.parse(window.localStorage.getItem("user"))
+    var url = new URL(location.origin + "/api/get_messages")
+    url.searchParams.set("id", user['id'])
+    url.searchParams.set("password", user['password'])
+    url.searchParams.set("chatId", chatId)
+    url.searchParams.set("logIndex", -1)
+    var res = await fetch(url, { method: "POST" })
+    res = await res.json()
+    if (res['status'] == 400) {return}
+    data = res['data']
+
+    var messages = document.getElementById(chatId + '-msgs')
+    messages.children.item(0).innerHTML = ''
+    if(howManyLoaded[chatId] == undefined){
+        howManyLoaded[chatId] = []
+    }
+    if(messageList[chatId] == undefined){
+        messageList[chatId] = []
+    }
+    console.log(messageList)
+    messageList[chatId] = data
+    for(log of data) {
+        log = JSON.parse(log)
+        howManyLoaded[chatId].push(parseInt(log['i']))
+        for(var [time, msg] of Object.entries(log['msgs'])){
+            msg['t'] = time
+            msg['i'] = chatId
+            visualizeMessages(msg, true)
+        }
+    }
 }
 
 visualizeFriends()
 
-var user = JSON.parse(window.localStorage.getItem("user"))
-var ws = new WebSocket('ws://' + location.origin.split('//')[1] + `/ws/${user['id']}?password=${user['password']}`)
-console.log(ws)
-ws.onmessage = async function (event) {
+
+async function visualizeMessages(data) {
     const scrollPos = window.scrollY
     const scrollable = document.documentElement.scrollHeight - window.innerHeight
     var user = JSON.parse(window.localStorage.getItem("user"))
-    var data = JSON.parse(event.data)
     var namesById = JSON.parse(window.localStorage.getItem("namesbyid"))
     if (!namesById) {
         window.localStorage.setItem("namesbyid", "{}")
@@ -285,42 +315,54 @@ ws.onmessage = async function (event) {
 
 
     var messages = document.getElementById(data['i'] + '-msgs')
+    var msg = `<div class="msg-div" id="${data['a']}-${data['t']}"><p>${data['d']}</p></div>`
     try {
 
-        var lastRow = messages.children.item(messages.childElementCount - 1).children.item(0)
-
+        var lastRow = messages.children.item(0).children.item(messages.children.item(0).childElementCount - 1)
+        if(lastRow == null) {throw 'First row'}
         if (lastRow.children.item(0).innerHTML != '' && lastRow.children.item(0).children.item(0).children.item(1).id.split('-')[0] == data['a']) {
-            console.log('left')
-            document.getElementById(lastRow.children.item(0).children.item(0).children.item(1).id).parentElement.innerHTML += `<div class="msg-div" id="${data['a']}-${data['t']}"><p>${data['d']}</p></div>`
+            var e = document.getElementById(lastRow.children.item(0).children.item(0).children.item(1).id).parentElement
+            e.innerHTML += msg
             scrollToBottom(scrollPos, scrollable)
+            
             return
         }
-        else if (lastRow.children.item(1).innerHTML != '' && lastRow.children.item(1).children.item(0).children.item(1).id.split('-')[0] == data['a']) {
-            console.log('right')
-            document.getElementById(lastRow.children.item(1).children.item(0).children.item(1).id).parentElement.innerHTML += `<div class="msg-div" id="${data['a']}-${data['t']}"><p>${data['d']}</p></div>`
+        else if (lastRow.children.item(1).innerHTML != '' && lastRow.children.item(1).children.item(0).children.item(0).id.split('-')[0] == data['a']) {
+            var e = document.getElementById(lastRow.children.item(1).children.item(0).children.item(0).id).parentElement
+            e.innerHTML += msg
             scrollToBottom(scrollPos, scrollable)
+            
             return
         }
     }
-    catch { }
+    catch (error) {console.log(error)}
 
 
     if (user['id'] == data['a']) {
         other_side = ''
-        own_side = `<div class="right"><div class="msg-div" id="${data['a']}-${data['t']}"><p>${data['d']}</p></div></div>`
+        own_side = `<div class="right">${msg}</div>`
     }
     else {
-        other_side = `<div class="left"><p>${namesById[data['a']]}</p><div class="msg-div" id="${data['a']}-${data['t']}"><p>${data['d']}</p></div></div>`
+        other_side = `<div class="left"><p>${namesById[data['a']]}</p>${msg}</div>`
         own_side = ''
     }
 
-    messages.innerHTML += `
-    <tr>
-      <td>${other_side}</td>
-      <td>${own_side}</td>
-    </tr>
-    `
+    messages.children.item(0).innerHTML += `
+        <tr>
+          <td>${other_side}</td>
+          <td>${own_side}</td>
+        </tr>
+        `
     scrollToBottom(scrollPos, scrollable)
+    
+}
+
+
+var user = JSON.parse(window.localStorage.getItem("user"))
+var ws = new WebSocket('ws://' + location.origin.split('//')[1] + `/ws/${user['id']}?password=${user['password']}`)
+ws.onmessage = async function (event) {
+    var data = JSON.parse(event.data)
+    visualizeMessages(data, true)
 };
 function sendMessage(event, id) {
     var user = JSON.parse(window.localStorage.getItem("user"))
@@ -339,8 +381,53 @@ function sendMessage(event, id) {
 
 function scrollToBottom(scrollPos, scrollable) {
     if (scrollable === Math.ceil(scrollPos)) {
-        console.log('At bottom!')
         window.scrollTo(0, document.body.scrollHeight)
     }
-    console.log(scrollable, scrollPos)
 }
+
+document.addEventListener('scroll', async function(event) {
+    const scrollPos = window.scrollY
+    const scrollable = document.documentElement.scrollHeight - window.innerHeight
+    var mainDiv = document.getElementById('main-div')
+    for(child of mainDiv.children){
+        if(child.hidden == false && child.classList.contains('chat')) {
+            chatId = child.id.split('-')[0]
+            if(scrollPos < 500) {
+                var nextToLoad = Math.min(...howManyLoaded[chatId])-1
+                if(nextToLoad in howManyLoaded[chatId] || nextToLoad<1){
+                    return
+                }
+
+                var user = JSON.parse(window.localStorage.getItem("user"))
+                var url = new URL(location.origin + "/api/get_messages")
+                url.searchParams.set("id", user['id'])
+                url.searchParams.set("password", user['password'])
+                url.searchParams.set("chatId", chatId)
+                url.searchParams.set("logIndex", nextToLoad)
+                var res = await fetch(url, { method: "POST" })
+                res = await res.json()
+                if (res['status'] == 400) {return}
+                data = res['data']
+
+                var temp = messageList[chatId]
+                messageList[chatId] = data.concat(temp)
+                howManyLoaded[chatId] = []
+
+                var messages = document.getElementById(chatId + '-msgs')
+                messages.children.item(0).innerHTML = ''
+
+                for(log of messageList[chatId]) {
+                    log = JSON.parse(log)
+                    howManyLoaded[chatId].push(parseInt(log['i']))
+                    for(var [time, msg] of Object.entries(log['msgs'])){
+                        msg['t'] = time
+                        msg['i'] = chatId
+                        visualizeMessages(msg, true)
+                    }
+                }
+                
+                window.scrollTo(0, scrollPos+Math.abs(scrollable-(document.documentElement.scrollHeight - window.innerHeight)))
+            }
+        }
+    }
+})
