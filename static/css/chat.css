@@ -15,6 +15,8 @@
     border: none;
     width: calc(100% - var(--send-btn-w));
 }
+.message-form input:focus {outline: none;}
+
 .message-form button {
     border-radius: 0px;
     border: none;
@@ -27,7 +29,8 @@
     width: 100%;
     border-collapse: separate;
     border-spacing: 10px;
-    margin-bottom: 30px;
+    margin-bottom: 35px;
+    padding-top: 60px;
 }
 
 .message-table td {
@@ -41,18 +44,19 @@
     background-color: #007bff;
     padding: 4px 10px;
     width: fit-content;
-    margin-bottom: 5px;
+    margin-bottom: 2px;
+}
+
+.row-div {
+    display: flex;
+    flex-direction: column;
 }
 
 .right {
-    display: flex;
-    flex-direction: column;
     align-items: flex-end;
 }
 
 .left {
-    display: flex;
-    flex-direction: column;
     align-items: flex-start;
 }
 
@@ -61,4 +65,31 @@
     justify-content: space-evenly;
     width: 100%;
     background-color: lightblue;
+}
+
+.time-txt {
+    color: gray;
+    font-size: 15px;
+}
+
+.upload-link {
+    background-color: white;
+    padding: 5px;
+}
+.upload-link span {
+    margin-top: 4px;
+}
+
+.name-div {
+    position: fixed;
+    display: flex;
+    justify-content: start;
+    width: 100%;
+    background-color: black;
+    padding-left: 10px;
+}
+.name-title {
+    color: white;
+    margin: 0;
+    padding: 10px 0;
 }

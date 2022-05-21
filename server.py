@@ -1,11 +1,13 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, UploadFile, File
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import StreamingResponse
 from pathlib import Path
 from typing import List
 from json import loads, dumps
 import time
+import io
 
 from database import db
 
@@ -86,6 +88,14 @@ async def websocket_endpoint(websocket: WebSocket, id: str, password: str):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
         print(f'Client {id} disconnected')
+
+#----------------------------------------Image API---------------------------------------
+@app.get("/image",responses = {200: {"content": {"image/png": {}}}}, response_class=Response)
+def get_image():
+    with open('static/media/img.jpg', 'rb') as img:
+        image_bytes = img.read()
+
+    return Response(content=image_bytes, media_type="image/png")
 
 #--------------------------------------API Requests--------------------------------------
 @app.post('/api/register')

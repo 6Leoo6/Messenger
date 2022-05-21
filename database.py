@@ -10,17 +10,23 @@ import string
 
 class DB():
     def __init__(self):
-        self.user_conn = self.connect()
+        self.user_conn = self.connect_user()
         self.chat_conn = self.connect_chat()
+        self.img_conn = self.connect_images()
         self.MAX_MESSAGES = 20
 
-    def connect(self):
+    def connect_user(self):
         conn = Sqlite3Worker(r'users.db')
-        conn.execute("create table if not exists users (firstN, lastN, id, username, email, password, contacts, groups, settings, friend_req)")
+        conn.execute("CREATE TABLE IF NOT EXISTS users (firstN, lastN, id, username, email, password, contacts, groups, settings, friend_req)")
         return conn
 
     def connect_chat(self):
         conn = Sqlite3Worker(r'chats.db')
+        return conn
+    
+    def connect_images(self):
+        conn = Sqlite3Worker(r'images.db')
+        conn.execute("CREATE TABLE IF NOT EXISTS main (id, data, img BLOB)")
         return conn
 
 
@@ -71,7 +77,8 @@ class DB():
         if  emailProblem != True: return emailProblem
         if len(password) < 8 or len(password) > 32 or password.isdigit() or password.isalpha(): return 'password'
 
-        self.user_conn.execute('INSERT INTO users values (?,?,?,?,?,?,?,?,?,?)', [firstN, lastN, id, username, email, password, '{}', '{}', '{}', '{}'])
+        self.user_conn.execute('INSERT INTO users VALUES (?,?,?,?,?,?,?,?,?,?)', [firstN, lastN, id, username, email, password, '{}', '{}', '{}', '{}'])
+        self.img_conn.execute(f'CREATE TABLE IF NOT EXISTS {id} (id, data, img BLOB)')
         #self.user_conn.commit()
         return id
 
@@ -174,9 +181,8 @@ class DB():
         chatId = self.generate_id(16, 0, first_seed, second_seed)
   
         self.chat_conn.execute(f'CREATE TABLE IF NOT EXISTS {chatId} (number, data)')
-        chatdb = self.chat_conn.execute(f'SELECT number FROM {chatId}')
-        if not chatdb:
-            self.chat_conn.execute(f'INSERT INTO {chatId} values (?, ?)', [0, json.dumps({'members': sorted([id, idTo]), 'type': 'dm'})])
+        if not self.chat_conn.execute(f'SELECT number FROM {chatId}'):
+            self.chat_conn.execute(f'INSERT INTO {chatId} VALUES (?, ?)', [0, json.dumps({'members': sorted([id, idTo]), 'type': 'dm'})])
 
 
         senderC.update({idTo: chatId})
@@ -212,7 +218,7 @@ class DB():
         fetch = self.chat_conn.execute(f'SELECT number FROM {chatId}')
         latestChat = max(list(map(lambda x: x[0], fetch)))
         if latestChat == 0 or json.loads(self.chat_conn.execute(f'SELECT data FROM {chatId} WHERE number={latestChat}')[0][0])['n'] == self.MAX_MESSAGES:
-            self.chat_conn.execute(f'INSERT INTO {chatId} values (?, ?)', [latestChat+1, json.dumps({'i': latestChat+1, 'n': 0, 'msgs': {}})])
+            self.chat_conn.execute(f'INSERT INTO {chatId} VALUES (?, ?)', [latestChat+1, json.dumps({'i': latestChat+1, 'n': 0, 'msgs': {}})])
             latestChat += 1
 
         existing = json.loads(self.chat_conn.execute(f'SELECT data FROM {chatId} WHERE number={latestChat}')[0][0])
@@ -246,8 +252,24 @@ class DB():
         except IndexError:
             return 'logIndex'
         return log
+    
+    def upload_img(self, data, img_bytes: bytes):
+        with open(r"C:\Users\gamer\OneDrive\Dokumentumok\Programozás\Messenger\static\media\img.jpg", "rb") as image:
+            img_bytes = image.read()
+        data = json.loads(data)
+        id = data['id']
+        data.pop('id')
+        self.img_conn.execute(f'CREATE TABLE IF NOT EXISTS {id} (id, data, img BLOB)')
+        while True:
+            img_id = self.generate_id(16, 16)
+            if not self.img_conn.execute(f'SELECT id FROM {id} WHERE id="{img_id}"'):
+                break
+        print(img_id)
+        self.img_conn.execute(f'INSERT INTO {id} VALUES (?, ?, ?)', [img_id, json.dumps(data), img_bytes])
+        print(self.img_conn.execute(f'SELECT id FROM {id}'))
+        return 'ok'
 
 db = DB()        
 
 if __name__ == '__main__':
-    print(db.getMsgs('1N4nE92AGSD97D43', 'Titkosjelszo01', 'kopyWpWdiCMGdppk', 2))
+    print(db.upload_img('{"id":"wDm92108gM0gIx82"}', 0))

@@ -19,15 +19,14 @@ p {
     height: 100%;
     margin-left: 0;
     position: fixed;
-    background-color: white;
-    border-right: 2px solid black;
+    background-color: black;
+    border-right: 2px solid white;
 }
 #category-change {
     display: flex;
     justify-content: space-around;
-    padding-top: 10px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid black;
+    padding: 13.2px 0;
+    border-bottom: 2px solid white;
 }
 .add-btn {
     text-align: center;
@@ -40,7 +39,7 @@ p {
     margin-left: auto;
     margin-right: 0;
 }
-#main-div h2 {
+#main-div h2:not(.name-title) {
     text-align: center;
     padding-top: 20px;
 }
