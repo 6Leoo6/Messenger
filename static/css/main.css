@@ -6,9 +6,13 @@
 body {
     background-color: lightblue;
     height: 100%;
+    color: #EDEDED;
 }
 p {
     margin-bottom: 0px;
+}
+a {
+    color: #EDEDED;
 }
 #warning-friend {
     margin-top: 20px;
@@ -19,14 +23,14 @@ p {
     height: 100%;
     margin-left: 0;
     position: fixed;
-    background-color: black;
-    border-right: 2px solid white;
+    background-color: #171717;
+    
 }
 #category-change {
     display: flex;
     justify-content: space-around;
     padding: 13.2px 0;
-    border-bottom: 2px solid white;
+    border-bottom: 2px solid #EDEDED;
 }
 .add-btn {
     text-align: center;
@@ -58,7 +62,7 @@ p {
 }
 #search-btn {
     color: black;
-    background-color: #007bff;
+    background-color: #DA0037;
     padding: 10px;
     border-radius: 5px;
 }
@@ -81,7 +85,7 @@ p {
     display: flex;
     padding-left: 5px;
     align-items: center;
-    background-color:#007bff;
+    background-color:#444444;
     margin-bottom: 5px;
     color: white
 }

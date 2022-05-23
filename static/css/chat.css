@@ -15,7 +15,10 @@
     border: none;
     width: calc(100% - var(--send-btn-w));
 }
-.message-form input:focus {outline: none;}
+
+.message-form input:focus {
+    outline: none;
+}
 
 .message-form button {
     border-radius: 0px;
@@ -76,8 +79,10 @@
     background-color: white;
     padding: 5px;
 }
+
 .upload-link span {
     margin-top: 4px;
+    color: #007bff;
 }
 
 .name-div {
@@ -85,11 +90,17 @@
     display: flex;
     justify-content: start;
     width: 100%;
-    background-color: black;
+    background-color: #171717;
     padding-left: 10px;
+    border-left: 2px solid #EDEDED;
 }
+
 .name-title {
-    color: white;
+    color: #EDEDED;
     margin: 0;
     padding: 10px 0;
+}
+
+.name-tag {
+    color: #171717;
 }

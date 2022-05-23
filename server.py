@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response, UploadFile, File
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -61,11 +61,11 @@ manager = ConnectionManager()
 
 #-------------------------------------HTML Templates-------------------------------------
 @app.get('/')
-def home(req: Request):
+def login(req: Request):
     return templates.TemplateResponse('index.html', {'request': req})
 
 @app.get('/register')
-def home(req: Request):
+def register(req: Request):
     return templates.TemplateResponse('register.html', {'request': req})
 
 @app.get('/main')
@@ -96,6 +96,15 @@ def get_image():
         image_bytes = img.read()
 
     return Response(content=image_bytes, media_type="image/png")
+
+@app.post("/uploadfile/")
+async def upload_file(id, password, file: UploadFile = File(...)):
+    data = {'name':file.filename,'type':file.content_type}
+    file_byte = await file.read()
+    res = db.upload_media(data, file_byte, id, password)
+    if res in ['auth', 'duplicate']:
+        return {'status': 400, 'error': res}
+    return {'status':200, 'data': res}
 
 #--------------------------------------API Requests--------------------------------------
 @app.post('/api/register')

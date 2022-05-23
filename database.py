@@ -202,6 +202,7 @@ class DB():
             return False
         if fetch == password:
             return True
+        return False
 
     def getChatMembers(self, chatId):
         try:
@@ -253,23 +254,22 @@ class DB():
             return 'logIndex'
         return log
     
-    def upload_img(self, data, img_bytes: bytes):
-        with open(r"C:\Users\gamer\OneDrive\Dokumentumok\Programozás\Messenger\static\media\img.jpg", "rb") as image:
-            img_bytes = image.read()
-        data = json.loads(data)
-        id = data['id']
-        data.pop('id')
+    def upload_media(self, data, img_bytes: bytes, id, password):
+        if not self.auth(id, password):
+            return 'auth'
         self.img_conn.execute(f'CREATE TABLE IF NOT EXISTS {id} (id, data, img BLOB)')
+
+        dup = self.img_conn.execute(f'SELECT * FROM {id} WHERE img=?', [img_bytes])
+        if dup:
+            return 'duplicate'
         while True:
             img_id = self.generate_id(16, 16)
             if not self.img_conn.execute(f'SELECT id FROM {id} WHERE id="{img_id}"'):
                 break
-        print(img_id)
         self.img_conn.execute(f'INSERT INTO {id} VALUES (?, ?, ?)', [img_id, json.dumps(data), img_bytes])
-        print(self.img_conn.execute(f'SELECT id FROM {id}'))
-        return 'ok'
+        return img_id
 
 db = DB()        
 
 if __name__ == '__main__':
-    print(db.upload_img('{"id":"wDm92108gM0gIx82"}', 0))
+    print(db.upload_img({"id":"wDm92108gM0gIx82"}, 0))

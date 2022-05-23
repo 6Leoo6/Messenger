@@ -1,6 +1,7 @@
 window.sessionStorage.setItem('currentlyLoading', false)
 window.sessionStorage.setItem('howManyLoaded', '{}')
 window.sessionStorage.setItem('scrollPos', '{}')
+window.sessionStorage.removeItem('idToSendReq')
 
 function changeList(id) {
     if (id == "user-single") {
@@ -250,7 +251,7 @@ async function visualizeFriends() {
         <form class="message-form" id="${user['contacts'][id]}-send" action="" onsubmit="sendMessage(event, id)">
             <div class="msg-form-div">
                 <a href="javascript:void(0)" class="upload-link">
-                    <span class="material-symbols-outlined">
+                    <span class="material-symbols-outlined upload-icon">
                         file_upload
                     </span>
                 </a>
@@ -357,7 +358,7 @@ async function visualizeMessages(data) {
         own_side = `<div class="right row-div">${msg}</div>`
     }
     else {
-        other_side = `<div class="left row-div"><p>${namesById[data['a']]}</p>${msg}</div>`
+        other_side = `<div class="left row-div"><p class="name-tag">${namesById[data['a']]}</p>${msg}</div>`
         own_side = ''
     }
 
@@ -410,7 +411,7 @@ async function storeMsgsToStr(data, storeMsgs) {
         own_side = `<div class="right row-div">${msg}</div>`
     }
     else {
-        other_side = `<div class="left row-div"><p>${namesById[data['a']]}</p>${msg}</div>`
+        other_side = `<div class="left row-div"><p class="name-tag">${namesById[data['a']]}</p>${msg}</div>`
         own_side = ''
     }
     
@@ -458,17 +459,14 @@ document.addEventListener('wheel', async function(event) {
             scrP[chatId] = scrollPos
             window.sessionStorage.setItem('scrollPos', JSON.stringify(scrP))
             if(scrollPos < 500 && event['deltaY'] < 0) {
-                console.log(window.sessionStorage.getItem('currentlyLoading'))
                 if(window.sessionStorage.getItem('currentlyLoading') == 'true') {
                     return
                 }
-                console.log(2)
                 var howManyLoaded = JSON.parse(window.sessionStorage.getItem('howManyLoaded'))
                 var nextToLoad = Math.min(...howManyLoaded[chatId])-1
                 if(howManyLoaded[chatId].includes(nextToLoad) || nextToLoad<1){
                     return
                 }
-                console.log(3)
                 window.sessionStorage.setItem('currentlyLoading', true)
 
                 var user = JSON.parse(window.localStorage.getItem("user"))
@@ -482,21 +480,39 @@ document.addEventListener('wheel', async function(event) {
                 if (res['status'] == 400) {return}
                 data = res['data']
 
+                var messages = document.getElementById(chatId + '-msgs')
+                if(messages.firstChild.children.item(0).children.item(0).innerHTML == ''){
+                    var oldestMsgs = messages.firstChild.children.item(0).children.item(1).firstChild
+                }
+                else {
+                    var oldestMsgs = messages.firstChild.children.item(0).children.item(0).firstChild
+                }
+                var tempLog = {'i':-1, 'msgs': {}}
+                for(var c of oldestMsgs.children){
+                    if(c.tagName === 'DIV') {
+                        tempLog['msgs'][c.id.split('-')[1]] = {'a':c.id.split('-')[0], 'c':'t', 'd':c.firstChild.innerText}
+                    }      
+                }
+                tempLog = JSON.stringify(tempLog)
+                data.push(tempLog)
+                messages.firstChild.children.item(0).remove()
 
                 var storeMsgs = document.createElement('table')
                 storeMsgs.innerHTML += '<tbody></tbody>'
                 for(log of data) {
                     log = JSON.parse(log)
-                    howManyLoaded[chatId].push(parseInt(log['i']))
-                    window.sessionStorage.setItem('howManyLoaded', JSON.stringify(howManyLoaded))
+                    if(parseInt(log['i']) != -1){
+                        howManyLoaded[chatId].push(parseInt(log['i']))
+                        window.sessionStorage.setItem('howManyLoaded', JSON.stringify(howManyLoaded))
+                    }
                     for(var [time, msg] of Object.entries(log['msgs'])){
                         msg['t'] = time
                         msg['i'] = chatId
                         storeMsgs = await storeMsgsToStr(msg, storeMsgs)
                     }
                 }
-                var messages = document.getElementById(chatId + '-msgs')
-                var temp = messages.children.item(0).innerHTML
+                
+                var temp = messages.firstChild.innerHTML
 
                 messages.children.item(0).innerHTML = storeMsgs.lastChild.innerHTML + temp
                 
