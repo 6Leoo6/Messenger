@@ -1,5 +1,5 @@
 :root {
-    --side-div-width: 200px;
+    --side-div-width: 250px;
     --search-input-width: 500px;
 }
 
@@ -14,6 +14,15 @@ p {
 a {
     color: #EDEDED;
 }
+
+.message-form {
+    position: fixed;
+    width: calc(100% - var(--side-div-width));
+    bottom: 0px;
+    margin-right: auto;
+    margin-left: auto;
+}
+
 #warning-friend {
     margin-top: 20px;
     margin-bottom: -20px;
@@ -30,11 +39,10 @@ a {
     display: flex;
     justify-content: space-around;
     padding: 13.2px 0;
-    border-bottom: 2px solid #EDEDED;
 }
 .add-btn {
     text-align: center;
-    margin-top: 10px;
+    margin-top: -6px;
     margin-bottom: 10px;
 }
 #main-div {
@@ -88,4 +96,24 @@ a {
     background-color:#444444;
     margin-bottom: 5px;
     color: white
+}
+
+#self-div {
+    border-bottom: 2px solid #EDEDED;
+    height: 58.4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 15px;
+}
+#self-div a {
+    height: 24px;
+    margin-right: 5px;
+}
+
+#self-name {
+    margin-left: 5px;
+}
+#gallery {
+    display: flex;
 }

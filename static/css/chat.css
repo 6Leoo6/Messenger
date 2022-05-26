@@ -2,14 +2,6 @@
     --send-btn-w: 75px;
 }
 
-.message-form {
-    position: fixed;
-    width: calc(100% - 200px);
-    bottom: 0px;
-    margin-right: auto;
-    margin-left: auto;
-}
-
 .message-form input {
     padding: 0 10px;
     border: none;
@@ -39,7 +31,12 @@
 .message-table td {
     padding: 0 20px;
     margin: 5px;
-    line-break: anywhere;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    -webkit-hyphens: auto;
+    -ms-hyphens: auto;
+    -moz-hyphens: auto;
+    hyphens: auto;
 }
 
 .msg-div {

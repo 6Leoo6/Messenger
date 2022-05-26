@@ -3,6 +3,8 @@ window.sessionStorage.setItem('howManyLoaded', '{}')
 window.sessionStorage.setItem('scrollPos', '{}')
 window.sessionStorage.removeItem('idToSendReq')
 
+document.getElementById('self-name').innerText = JSON.parse(window.localStorage.getItem('user'))['userN']
+
 function changeList(id) {
     if (id == "user-single") {
         document.getElementById("add-friend").hidden = false
@@ -448,7 +450,7 @@ function scrollToBottom(scrollPos, scrollable) {
     }
 }
 
-document.addEventListener('wheel', async function(event) {
+document.addEventListener('scroll', async function(event) {
     const scrollPos = window.scrollY
     const scrollable = document.documentElement.scrollHeight - window.innerHeight
     var mainDiv = document.getElementById('main-div')
@@ -458,7 +460,7 @@ document.addEventListener('wheel', async function(event) {
             var scrP = JSON.parse(window.sessionStorage.getItem('scrollPos'))
             scrP[chatId] = scrollPos
             window.sessionStorage.setItem('scrollPos', JSON.stringify(scrP))
-            if(scrollPos < 500 && event['deltaY'] < 0) {
+            if(scrollPos < 300) {
                 if(window.sessionStorage.getItem('currentlyLoading') == 'true') {
                     return
                 }
@@ -538,6 +540,11 @@ function showTime(id) {
     
     time.hidden = !state
     scrollToBottom(scrollPos, scrollable)
+}
+
+async function loadGallery() {
+    hideChildren(true, document.getElementById('main-div').children)
+    document.getElementById('gallery').hidden = false
 }
 
 visualizeFriends()

@@ -1,7 +1,5 @@
-from distutils.util import execute
-from msilib.schema import Error
-from click import command
 from sqlite3worker import Sqlite3Worker
+import sqlite3
 import json
 import random
 import re
@@ -254,7 +252,7 @@ class DB():
             return 'logIndex'
         return log
     
-    def upload_media(self, data, img_bytes: bytes, id, password):
+    def uploadMedia(self, data, img_bytes: bytes, id, password):
         if not self.auth(id, password):
             return 'auth'
         self.img_conn.execute(f'CREATE TABLE IF NOT EXISTS {id} (id, data, img BLOB)')
@@ -268,6 +266,18 @@ class DB():
                 break
         self.img_conn.execute(f'INSERT INTO {id} VALUES (?, ?, ?)', [img_id, json.dumps(data), img_bytes])
         return img_id
+
+    def getMedia(self, userId, imgId):
+        con = sqlite3.connect("images.db")
+        cur = con.cursor()
+        con.text_factory = bytes
+        cur.execute(f'SELECT * FROM {userId} WHERE id="{imgId}"')
+        try:
+            data = cur.fetchone()
+            con.close()
+        except IndexError: return 'badRoute'
+        if not data: return 'badRoute'
+        return data
 
 db = DB()        
 

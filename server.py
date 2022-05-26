@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List
 from json import loads, dumps
 import time
-import io
+import json
 
 from database import db
 
@@ -90,18 +90,18 @@ async def websocket_endpoint(websocket: WebSocket, id: str, password: str):
         print(f'Client {id} disconnected')
 
 #----------------------------------------Image API---------------------------------------
-@app.get("/image",responses = {200: {"content": {"image/png": {}}}}, response_class=Response)
-def get_image():
-    with open('static/media/img.jpg', 'rb') as img:
-        image_bytes = img.read()
-
-    return Response(content=image_bytes, media_type="image/png")
+@app.get("/img/{userId}/{imgId}",responses = {200: {"content": {"image/png": {}}}}, response_class=Response)
+def get_image(userId, imgId):
+    res = db.getMedia(userId, imgId)
+    if res in ['badRoute']:
+        res = db.getMedia('main', 'not_found')
+    return Response(content=res[2], media_type=json.loads(res[1])['type'])
 
 @app.post("/uploadfile/")
 async def upload_file(id, password, file: UploadFile = File(...)):
     data = {'name':file.filename,'type':file.content_type}
     file_byte = await file.read()
-    res = db.upload_media(data, file_byte, id, password)
+    res = db.uploadMedia(data, file_byte, id, password)
     if res in ['auth', 'duplicate']:
         return {'status': 400, 'error': res}
     return {'status':200, 'data': res}
