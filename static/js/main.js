@@ -1,3 +1,7 @@
+if(window.localStorage.getItem('user') == undefined){
+    location = '/'
+}
+
 window.sessionStorage.setItem('currentlyLoading', false)
 window.sessionStorage.setItem('howManyLoaded', '{}')
 window.sessionStorage.setItem('scrollPos', '{}')
@@ -219,10 +223,10 @@ async function getUserData() {
             userN: data[3],
             email: data[4],
             password: data[5],
-            contacts: JSON.parse(data[6]),
-            groups: JSON.parse(data[7]),
-            settings: JSON.parse(data[8]),
-            friend_req: JSON.parse(data[9]),
+            contacts: data[6],
+            groups: data[7],
+            settings: data[8],
+            friend_req: data[9],
         }
         window.localStorage.setItem("user", JSON.stringify(userData))
     } else {
@@ -299,7 +303,6 @@ async function loadChat(chatId) {
     messages.children.item(0).innerHTML = ''
     howManyLoaded[chatId] = []
     for(log of data) {
-        log = JSON.parse(log)
         howManyLoaded[chatId].push(parseInt(log['i']))
         for(var [time, msg] of Object.entries(log['msgs'])){
             msg['t'] = time
@@ -424,12 +427,19 @@ async function storeMsgsToStr(data, storeMsgs) {
 
 
 var user = JSON.parse(window.localStorage.getItem("user"))
-var ws = new WebSocket('ws://' + location.origin.split('//')[1] + `/ws/${user['id']}?password=${user['password']}`)
-ws.onmessage = async function (event) {
-    var data = JSON.parse(event.data)
-    visualizeMessages(data)
-};
+function setupWS(){
+    window.ws = new WebSocket('ws://' + location.origin.split('//')[1] + `/ws/${user['id']}?password=${user['password']}`)
+    ws.onmessage = async function (event) {
+        var data = JSON.parse(event.data)
+        visualizeMessages(data)
+    };
+}
+setupWS()
+
 function sendMessage(event, id) {
+    if(!(ws.readyState === ws.OPEN)){
+        setupWS()
+    }
     var user = JSON.parse(window.localStorage.getItem("user"))
     id = id.split('-')[0]
     var input = document.getElementById(id + "-msgt")
@@ -439,7 +449,13 @@ function sendMessage(event, id) {
         'c': 't', //content: txt/media
         'd': input.value //data
     }
-    ws.send(JSON.stringify(data))
+    try{
+        ws.send(JSON.stringify(data))
+    }
+    catch{
+        location
+    }
+    
     input.value = ''
     event.preventDefault()
 }

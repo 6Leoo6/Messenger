@@ -70,7 +70,7 @@ a {
 }
 #search-btn {
     color: black;
-    background-color: #DA0037;
+    background-color: #007bff;
     padding: 10px;
     border-radius: 5px;
 }
@@ -116,4 +116,8 @@ a {
 }
 #gallery {
     display: flex;
+}
+
+#username-p {
+    color: #171717;
 }
