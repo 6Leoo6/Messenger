@@ -243,7 +243,7 @@ async function visualizeFriends() {
         if (res['status'] == 400) { continue }
         var name = res['name']
 
-        friendsListContent += `<div class="friend-div" id="${user['contacts'][id]}-btn" onclick="loadChat(id)"><p>${name}</p></div>`
+        friendsListContent += `<div class="friend-div" id="${user['contacts'][id]}-btn" onclick="showChat(id)"><p>${name}</p></div>`
         friendDivs += `
         <div class="chat" id="${user['contacts'][id]}-chat" hidden>
         <div class="name-div"><h2 class="name-title">${name}</h2></div>
@@ -269,9 +269,6 @@ async function visualizeFriends() {
 
 async function loadChat(chatId) {
     chatId = chatId.split('-')[0]
-    hideChildren(true, document.getElementById('main-div').children)
-    chatDiv = document.getElementById(chatId + '-chat')
-    chatDiv.hidden = false
     if(JSON.parse(window.sessionStorage.getItem('scrollPos'))[chatId]){
         window.scrollTo(0, JSON.parse(window.sessionStorage.getItem('scrollPos'))[chatId])
     }
@@ -305,6 +302,18 @@ async function loadChat(chatId) {
     }
     window.sessionStorage.setItem('howManyLoaded', JSON.stringify(howManyLoaded))
     window.sessionStorage.setItem('currentlyLoading', false)
+}
+
+function showChat(chatId) {
+    chatId = chatId.split('-')[0]
+    hideChildren(true, document.getElementById('main-div').children)
+    chatDiv = document.getElementById(chatId + '-chat')
+    chatDiv.hidden = false
+    window.scrollTo({
+        top: document.body.scrollHeight,
+        left: 0,
+        behavior: 'instant',
+      })
 }
 
 async function visualizeMessages(data) {
@@ -466,7 +475,11 @@ function sendMessage(event, id) {
 
 function scrollToBottom(scrollPos, scrollable) {
     if (scrollable === Math.ceil(scrollPos)) {
-        window.scrollTo(0, document.body.scrollHeight)
+        window.scrollTo({
+            top: document.body.scrollHeight,
+            left: 0,
+            behavior: 'instant',
+          })
     }
 }
 
@@ -512,25 +525,30 @@ document.addEventListener('scroll', async function(event) {
                 var tempLog = {'i':-1, 'msgs': {}}
                 for(var c of oldestMsgs.children){
                     if(c.tagName === 'DIV') {
-                        tempLog['msgs'][c.id.split('-')[1]] = {'a':c.id.split('-')[0], 'c':'t', 'd':c.firstChild.innerText}
+                        if(c.classList.contains('msg-div')) {
+                            tempLog['msgs'][c.id.split('-')[1]] = {'a':c.id.split('-')[0], 'c':'t', 'd':c.firstChild.innerText}
+                        }
+                        else if(c.classList.contains('msg-img-div')) {
+                            tempLog['msgs'][c.id.split('-')[1]] = {'a':c.id.split('-')[0], 'c':'i', 'd':c.firstChild.getAttribute("src").split('/')[3]}
+                        }
+                        
                     }      
                 }
-                tempLog = JSON.stringify(tempLog)
+                console.log(tempLog)
                 data.push(tempLog)
                 messages.firstChild.children.item(0).remove()
 
                 var storeMsgs = document.createElement('table')
                 storeMsgs.innerHTML += '<tbody></tbody>'
                 for(log of data) {
-                    if(parseInt(log['i']) != -1){
-                        howManyLoaded[chatId].push(parseInt(log['i']))
-                        window.sessionStorage.setItem('howManyLoaded', JSON.stringify(howManyLoaded))
-                    }
-                    console.log(log['msgs'])
                     for(var [time, msg] of Object.entries(log['msgs'])){
                         msg['t'] = time
                         msg['i'] = chatId
                         storeMsgs = await storeMsgsToStr(msg, storeMsgs)
+                    }
+                    if(parseInt(log['i']) != -1){
+                        howManyLoaded[chatId].push(parseInt(log['i']))
+                        window.sessionStorage.setItem('howManyLoaded', JSON.stringify(howManyLoaded))
                     }
                 }
                 
@@ -538,7 +556,7 @@ document.addEventListener('scroll', async function(event) {
 
                 messages.children.item(0).innerHTML = storeMsgs.lastChild.innerHTML + temp
                 
-                window.scrollTo(0, scrollPos+Math.abs(scrollable-(document.documentElement.scrollHeight - window.innerHeight)))
+                window.scrollTo({top: scrollPos+Math.abs(scrollable-(document.documentElement.scrollHeight - window.innerHeight)), left: 0, behavior: 'instant'})
                 var scrP = JSON.parse(window.sessionStorage.getItem('scrollPos'))
                 scrP[chatId] = scrollPos
                 window.sessionStorage.setItem('scrollPos', JSON.stringify(scrP))
@@ -694,7 +712,6 @@ async function sendSelectedMedia() {
             var id = cl.split('-')[0]
         }
     }
-    console.log(id)
     
     for(const img of document.querySelectorAll('.select-icon-media.active')) {
         if(!(ws.readyState === ws.OPEN)){
@@ -719,6 +736,12 @@ async function sendSelectedMedia() {
     window.scrollTo(0, document.body.scrollHeight)
 }
 
+async function loadChats() {
+    await visualizeFriends()
+    for(const chatId of Object.values(JSON.parse(getUser())['contacts'])) {
+        await loadChat(chatId)
+    }
+}
 
 if(getUser() == undefined){
     location = '/'
@@ -734,7 +757,9 @@ window.sessionStorage.setItem('galleryLoaded', false)
 
 document.getElementById('self-name').innerText = JSON.parse(getUser())['userN']
 
-visualizeFriends()
+
+
+loadChats()
 
 loadGalleryItems()
 
