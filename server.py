@@ -94,10 +94,14 @@ async def websocket_endpoint(websocket: WebSocket, id: str, password: str):
 def get_image(userId, imgId):
     res = db.getMedia(userId, imgId)
     if res in ['badRoute']:
-        res = db.getMedia('main', 'not_found')
-    return Response(content=res[2], media_type=json.loads(res[1])['type'])
+        res = db.getMedia('default', 'not_found')
+    
+    try:
+        return Response(content=res[3].tobytes(), media_type=res[2]['type'])
+    except IndexError:
+        return Response(content=res[2].tobytes(), media_type=res[1]['type'])
 
-@app.post("/uploadfile/")
+@app.post("/uploadfile")
 async def upload_file(id, password, file: UploadFile = File(...)):
     data = {'name':file.filename,'type':file.content_type}
     file_byte = await file.read()
@@ -105,6 +109,20 @@ async def upload_file(id, password, file: UploadFile = File(...)):
     if res in ['auth', 'duplicate']:
         return {'status': 400, 'error': res}
     return {'status':200, 'data': res}
+
+@app.get('/api/list_media')
+def list_media(id, password):
+    res = db.listMedia(id, password)
+    if res in ['badLogin']:
+        return {'status': 400, 'error': res}
+    return {'status': 200, 'data': res}
+
+@app.delete('/api/delete_media')
+def delete_media(id, password, imgId):
+    res = db.deleteMedia(id, password, imgId)
+    if res is not None:
+        return {'status': 400, 'error': res}
+    return {'status': 200}
 
 #--------------------------------------API Requests--------------------------------------
 @app.post('/api/register')
@@ -145,9 +163,6 @@ def handle_friend_req(id: str, password: str, idTo: str, action: str):
 def get_messages(id: str, password: str, chatId: str, logIndex: int):
     res = db.getMsgs(id, password, chatId, logIndex)
     return {'status': 400, 'error': res} if res in ['logIndex', 'noMsgs', 'id', 'password', 'notM', 'chatId'] else {'status': 200, 'data': res}
-
-
-
 
 
 

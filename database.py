@@ -104,7 +104,7 @@ class DB():
             self.users_pool.putconn(conn)
             return 'password'
 
-        cur.execute('INSERT INTO users VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)', [firstN, lastN, id, username, email, password, '{}', '{}', '{}', '{}'])
+        cur.execute('INSERT INTO users VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)', [firstN, lastN, id, username, email, password, '{}', '{}', '{}', '{}', '{}'])
 
         conn.commit()
         self.users_pool.putconn(conn)
@@ -344,19 +344,37 @@ class DB():
             self.imgs_pool.putconn(conn)
             return 'auth'
 
-        cur.execute(f'SELECT * FROM images WHERE author=%s AND img=%s', [id, img_bytes])
+        cur.execute('SELECT * FROM images WHERE author=%s AND img=%s', [id, img_bytes])
         if cur.fetchall():
             self.imgs_pool.putconn(conn)
             return 'duplicate'
         while True:
             img_id = self.generate_id(16, 16)
-            cur.execute(f'SELECT id FROM images WHERE id="{img_id}"')
+            cur.execute('SELECT id FROM images WHERE id=%s', [img_id])
             if not cur.fetchall():
                 break
-        cur.execute(f'INSERT INTO images VALUES (?, ?, ?, ?)', [img_id, id, json.dumps(data), img_bytes])
+        cur.execute('INSERT INTO images VALUES (%s, %s, %s, %s)', [img_id, id, json.dumps(data), psycopg2.Binary(img_bytes)])
         conn.commit()
         self.imgs_pool.putconn(conn)
+
+        conn, cur = self.connect_user()
+        cur.execute('SELECT images FROM users WHERE id=%s', [id])
+        images = cur.fetchone()[0]
+        if not images:
+            images = {'images': []}
+        images['images'].append(img_id)
+        cur.execute('UPDATE users SET images=%s WHERE id=%s', [json.dumps(images), id])
+        conn.commit()
+        self.users_pool.putconn(conn)
         return img_id
+    
+    def uploadToDefault(self, data, img_bytes: bytes, id='not_found'):
+        data = {"name": "not-found.png", "type": "image/png"}
+        conn, cur = self.connect_images()
+        cur.execute('INSERT INTO system VALUES (%s, %s, %s)', [id, json.dumps(data), img_bytes])
+        conn.commit()
+        self.imgs_pool.putconn(conn)
+
  
     def getMedia(self, userId, imgId):
         conn, cur = self.connect_images()
@@ -372,12 +390,52 @@ class DB():
         except IndexError:
             self.imgs_pool.putconn(conn)
             return 'badRoute'
-        
+
+
+    def deleteMedia(self, userId, password, imgId):
+        conn, cur = self.connect_user()
+        cur.execute('SELECT images FROM users WHERE id=%s AND password=%s', [userId, password])
+        imgs = cur.fetchone()
+        if not imgs:
+            self.users_pool.putconn(conn)
+            return 'badAuth'
+        imgs = imgs[0]
+        try:
+            imgs['images'].remove(imgId)
+        except ValueError:
+            self.users_pool.putconn(conn)
+            return 'imgid'
+        except TypeError:
+            self.users_pool.putconn(conn)
+            return
+        cur.execute('UPDATE users SET images=%s WHERE id=%s', [json.dumps(imgs), userId])
+        conn.commit()
+        self.users_pool.putconn(conn)
+
+        conn, cur = self.connect_images()
+        cur.execute('DELETE FROM images WHERE id=%s', [imgId])
+        conn.commit()
+        self.imgs_pool.putconn(conn)
+
+    
+    def listMedia(self, id, password):
+        conn, cur = self.connect_user()
+        cur.execute('SELECT images FROM users WHERE id=%s AND password=%s', [id, password])
+        fetch = cur.fetchone()
+        self.users_pool.putconn(conn)
+        if not fetch:
+            return 'badLogin'
+        try:
+            return fetch[0]['images']
+        except TypeError:
+            return []
+
 
 db = DB()        
 
 if __name__ == '__main__':
     #print(db.sendFriendReq("360V9ylSpO4G2f20","6ps21z7gNT108Uy2", "Szuperjelszo007"))
     #print(db.handleFriendReq("360V9ylSpO4G2f20", "Titkosjelszo01", "6ps21z7gNT108Uy2", 'accept'))
-    print(db.auth("6ps21z7gNT108Uy2", "Szuperjelszo007"))
+    #print(db.auth("6ps21z7gNT108Uy2", "Szuperjelszo007"))
     #print(db.registerUser("Leó", "Takács", "Leoo", "leo.takacs@yahoo.com", "Szuperjelszo007"))
+    print(db.deleteMedia("6ps21z7gNT108Uy2", "Szuperjelszo007", "582tL22hMQdyQ1V7061cl06i8N5aoK62"))

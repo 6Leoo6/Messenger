@@ -1,13 +1,7 @@
-if(window.localStorage.getItem('user') == undefined){
-    location = '/'
+function getUser() {
+    return window.localStorage.getItem('user')
 }
 
-window.sessionStorage.setItem('currentlyLoading', false)
-window.sessionStorage.setItem('howManyLoaded', '{}')
-window.sessionStorage.setItem('scrollPos', '{}')
-window.sessionStorage.removeItem('idToSendReq')
-
-document.getElementById('self-name').innerText = JSON.parse(window.localStorage.getItem('user'))['userN']
 
 function changeList(id) {
     if (id == "user-single") {
@@ -51,7 +45,7 @@ async function showAddFriend(id) {
 }
 
 async function handleReq(id) {
-    var user = JSON.parse(window.localStorage.getItem('user'))
+    var user = JSON.parse(getUser())
 
     var [idTo, action] = id.split('-')
 
@@ -78,7 +72,7 @@ async function visualizeReqs() {
 
 async function calculateFriendDiv() {
     await getUserData()
-    var user = JSON.parse(window.localStorage.getItem("user"))
+    var user = JSON.parse(getUser())
     var namesById = JSON.parse(window.localStorage.getItem("namesbyid"))
     if(namesById == null){
         window.localStorage.setItem("namesbyid", "{}")
@@ -138,7 +132,7 @@ async function submitSearch() {
         var id = res["id"]
         window.sessionStorage.setItem("idToSendReq", id)
         warning.hidden = true
-        var user = JSON.parse(window.localStorage.getItem("user"))
+        var user = JSON.parse(getUser())
         friend_req = user["friend_req"]
 
         result_div.hidden = false
@@ -174,7 +168,7 @@ async function addFriend() {
     var url = new URL(location.origin + "/api/send_friend_req")
     idTo = window.sessionStorage.getItem("idToSendReq")
     window.sessionStorage.removeItem("idToSendReq")
-    var user = JSON.parse(window.localStorage.getItem("user"))
+    var user = JSON.parse(getUser())
     url.searchParams.set("idTo", idTo)
     url.searchParams.set("idFrom", user["id"])
     url.searchParams.set("passwordFrom", user["password"])
@@ -199,7 +193,7 @@ async function addFriend() {
 }
 
 async function getUserData() {
-    var user = JSON.parse(window.localStorage.getItem("user"))
+    var user = JSON.parse(getUser())
 
     if (user == null) {
         location.href = "/"
@@ -240,7 +234,7 @@ async function visualizeFriends() {
     await getUserData()
     var friendsListContent = ''
     var friendDivs = ''
-    var user = JSON.parse(window.localStorage.getItem("user"))
+    var user = JSON.parse(getUser())
     for (const [id, chatId] of Object.entries(user['contacts'])) {
         var url = new URL(location.origin + "/api/get_usern_by_id")
         url.searchParams.set("id", id)
@@ -256,7 +250,7 @@ async function visualizeFriends() {
         <table class="message-table" id="${user['contacts'][id]}-msgs"><tbody></tbody></table>
         <form class="message-form" id="${user['contacts'][id]}-send" action="" onsubmit="sendMessage(event, id)">
             <div class="msg-form-div">
-                <a href="javascript:void(0)" class="upload-link">
+                <a href="javascript:void(0)" oclick="loadFileSelector()" class="upload-link">
                     <span class="material-symbols-outlined upload-icon">
                         file_upload
                     </span>
@@ -266,7 +260,6 @@ async function visualizeFriends() {
             </div>
           
         </form>
-        <ul id="${user['contacts'][id]}-msgs"></ul>
       </div>`
 
     }
@@ -285,7 +278,7 @@ async function loadChat(chatId) {
     var howManyLoaded = JSON.parse(window.sessionStorage.getItem('howManyLoaded'))
     if(howManyLoaded[chatId]){return}
     window.sessionStorage.setItem('currentlyLoading', true)
-    var user = JSON.parse(window.localStorage.getItem("user"))
+    var user = JSON.parse(getUser())
     var url = new URL(location.origin + "/api/get_messages")
     url.searchParams.set("id", user['id'])
     url.searchParams.set("password", user['password'])
@@ -315,9 +308,10 @@ async function loadChat(chatId) {
 }
 
 async function visualizeMessages(data) {
+    console.log(data)
     const scrollPos = window.scrollY
     const scrollable = document.documentElement.scrollHeight - window.innerHeight
-    var user = JSON.parse(window.localStorage.getItem("user"))
+    var user = JSON.parse(getUser())
     var namesById = JSON.parse(window.localStorage.getItem("namesbyid"))
     if (!namesById) {
         window.localStorage.setItem("namesbyid", "{}")
@@ -378,7 +372,7 @@ async function visualizeMessages(data) {
 }
 
 async function storeMsgsToStr(data, storeMsgs) {
-    var user = JSON.parse(window.localStorage.getItem("user"))
+    var user = JSON.parse(getUser())
     var namesById = JSON.parse(window.localStorage.getItem("namesbyid"))
     if (!namesById) {
         window.localStorage.setItem("namesbyid", "{}")
@@ -426,21 +420,21 @@ async function storeMsgsToStr(data, storeMsgs) {
 }
 
 
-var user = JSON.parse(window.localStorage.getItem("user"))
 function setupWS(){
+    var user = JSON.parse(getUser())
     window.ws = new WebSocket('ws://' + location.origin.split('//')[1] + `/ws/${user['id']}?password=${user['password']}`)
     ws.onmessage = async function (event) {
         var data = JSON.parse(event.data)
         visualizeMessages(data)
     };
 }
-setupWS()
+
 
 function sendMessage(event, id) {
     if(!(ws.readyState === ws.OPEN)){
         setupWS()
     }
-    var user = JSON.parse(window.localStorage.getItem("user"))
+    var user = JSON.parse(getUser())
     id = id.split('-')[0]
     var input = document.getElementById(id + "-msgt")
     var data = {
@@ -487,7 +481,7 @@ document.addEventListener('scroll', async function(event) {
                 }
                 window.sessionStorage.setItem('currentlyLoading', true)
 
-                var user = JSON.parse(window.localStorage.getItem("user"))
+                var user = JSON.parse(getUser())
                 var url = new URL(location.origin + "/api/get_messages")
                 url.searchParams.set("id", user['id'])
                 url.searchParams.set("password", user['password'])
@@ -561,6 +555,96 @@ function showTime(id) {
 async function loadGallery() {
     hideChildren(true, document.getElementById('main-div').children)
     document.getElementById('gallery').hidden = false
+
+    if(window.sessionStorage.getItem('galleryLoaded') == 'true') {return}
+
+    var user = JSON.parse(getUser())
+
+    var url = new URL(location.origin + '/api/list_media')
+    url.searchParams.set('id', user['id'])
+    url.searchParams.set('password', user['password'])
+    var res = await fetch(url, {method: 'GET'})
+    res = await res.json()
+    if(res['status'] == 400){return}
+    var data = res['data']
+
+    var gallery = document.getElementById('gallery-items')
+    for(const img_id of data.reverse()) {
+        gallery.innerHTML += 
+        `<div id="${img_id}-div" class="img-holder">
+        <img src="/img/${user['id']}/${img_id}">
+        <a id="${img_id}" onclick="deleteMedia(id)" href="javascript:void(0)" class="trashcan-icon-gallery">
+        <span class="material-symbols-outlined">delete</span>
+        </a>
+        </div>`
+    }
+    window.sessionStorage.setItem('galleryLoaded', true)
 }
 
+async function uploadFile(event) {
+    event.preventDefault()
+    console.log(event)
+    file = new FileReader()
+    try {
+        file.readAsBinaryString(event.srcElement[0].files[0])
+    }
+    catch{return}    
+
+    file.onload = async function() {
+        var user = JSON.parse(getUser())
+        var url = new URL(location.origin + "/uploadfile")
+        url.searchParams.set('id', user['id'])
+        url.searchParams.set('password', user['password'])
+        const formData = new FormData()
+        formData.append('file', event.srcElement[0].files[0])
+        var res = await fetch(url, { method: "POST", body: formData})
+        res = await res.json()
+        if (res['status'] == 400) {return}
+        data = res['data']
+        console.log(data)
+
+        var gallery = document.getElementById('gallery-items')
+        gallery.innerHTML = 
+        `<div id="${data}-div" class="img-holder">
+        <img src="/img/${user['id']}/${data}">
+        <a id="${data}" onclick="deleteMedia(id)" href="javascript:void(0)" class="trashcan-icon-gallery">
+        <span class="material-symbols-outlined">delete</span>
+        </a>
+        </div>`
+        + gallery.innerHTML
+    }
+}
+
+async function deleteMedia(id) {
+    console.log(id)
+    var user = JSON.parse(getUser())
+    var url = new URL(location.origin + '/api/delete_media')
+    url.searchParams.set('id', user['id'])
+    url.searchParams.set('password', user['password'])
+    url.searchParams.set('imgId', id)
+    var res = await fetch(url, {method: 'DELETE'})
+    res = await res.json()
+    if (res['status'] == 400) {return}
+    document.getElementById(id + '-div').remove()
+}
+
+function loadFileSelector() {
+    
+}
+
+if(getUser() == undefined){
+    location = '/'
+}
+
+setupWS()
+
+window.sessionStorage.setItem('currentlyLoading', false)
+window.sessionStorage.setItem('howManyLoaded', '{}')
+window.sessionStorage.setItem('scrollPos', '{}')
+window.sessionStorage.removeItem('idToSendReq')
+window.sessionStorage.setItem('galleryLoaded', false)
+
+document.getElementById('self-name').innerText = JSON.parse(getUser())['userN']
+
 visualizeFriends()
+

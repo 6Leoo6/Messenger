@@ -8,9 +8,11 @@ body {
     height: 100%;
     color: #EDEDED;
 }
+
 p {
     margin-bottom: 0px;
 }
+
 a {
     color: #EDEDED;
 }
@@ -27,34 +29,40 @@ a {
     margin-top: 20px;
     margin-bottom: -20px;
 }
+
 #side-div {
     width: var(--side-div-width);
     height: 100%;
     margin-left: 0;
     position: fixed;
     background-color: #171717;
-    
+
 }
+
 #category-change {
     display: flex;
     justify-content: space-around;
     padding: 13.2px 0;
 }
+
 .add-btn {
     text-align: center;
     margin-top: -6px;
     margin-bottom: 10px;
 }
+
 #main-div {
     width: calc(100% - var(--side-div-width));
     height: 100%;
     margin-left: auto;
     margin-right: 0;
 }
+
 #main-div h2:not(.name-title) {
     text-align: center;
     padding-top: 20px;
 }
+
 #add-friend-div {
     width: 100%;
     height: 100%;
@@ -62,38 +70,44 @@ a {
     align-items: center;
     flex-direction: column;
 }
+
 #search-div {
     margin-top: 50px;
 }
+
 #warning-friend {
     margin-bottom: 20px;
 }
+
 #search-btn {
     color: black;
     background-color: #007bff;
     padding: 10px;
     border-radius: 5px;
 }
+
 #search-friend {
     width: var(--search-input-width);
     margin-right: 20px;
     margin-bottom: 20px;
 }
+
 .friend-req-divs {
     background-color: white;
     width: 550px;
     height: 100px;
     margin-top: 10px;
     display: flex;
-    justify-content:space-around;
+    justify-content: space-around;
     align-items: center;
 }
+
 .friend-div {
     height: 60px;
     display: flex;
     padding-left: 5px;
     align-items: center;
-    background-color:#444444;
+    background-color: #444444;
     margin-bottom: 5px;
     color: white
 }
@@ -106,6 +120,7 @@ a {
     justify-content: space-between;
     font-size: 15px;
 }
+
 #self-div a {
     height: 24px;
     margin-right: 5px;
@@ -114,10 +129,97 @@ a {
 #self-name {
     margin-left: 5px;
 }
-#gallery {
-    display: flex;
-}
 
 #username-p {
     color: #171717;
+}
+
+#upload-form {
+    position: fixed;
+    bottom: 0px;
+    width: calc(100% - var(--side-div-width));
+}
+
+#upload-file-btn {
+    border-radius: 0;
+}
+
+#gallery-items {
+    margin: 20px;
+    margin-top: 0;
+    margin-bottom: 60px;
+    justify-content: center;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.img-holder {
+    width: 275px;
+    height: 275px;
+    margin: 10px;
+    position: relative;
+}
+
+.img-holder img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.trashcan-icon-gallery {
+    display: none;
+    position: absolute;
+    bottom: 0px;
+    right: 5px;
+}
+
+.trashcan-icon-gallery span {
+    font-size: 30px;
+    color: rgb(236, 11, 11);
+}
+
+.img-holder:hover>.trashcan-icon-gallery {
+    display: inline;
+}
+
+#overlay {
+    position: fixed;
+    opacity: 0;
+    transition: 200ms ease-in-out;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, .5);
+    pointer-events: none;
+}
+
+#overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+#media-selector-popup {
+    background-color: #444444;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    border-radius: 7px;
+    z-index: 10;
+    width: 1000px;
+    max-width: 80%;
+    height: 800px;
+    max-height: 80%;
+}
+
+#media-selector-popup.active {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+#media-selector-popup h2 {
+    margin-left: 10px;
+    margin-top: 5px;
+    text-align: center;
 }

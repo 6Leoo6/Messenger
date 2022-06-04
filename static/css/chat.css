@@ -101,3 +101,15 @@
 .name-tag {
     color: #171717;
 }
+
+.msg-img-div {
+    width: 275px;
+    margin: 3px 0;
+}
+
+.msg-img-div img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 15px;
+}
