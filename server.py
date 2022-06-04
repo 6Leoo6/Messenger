@@ -53,7 +53,11 @@ class ConnectionManager:
 
         for connection in self.active_connections:
             if str(connection.url).rsplit('/', 1)[1].split('?')[0] in members:
-                await connection.send_text(dumps(data))
+                try:
+                    await connection.send_text(dumps(data))
+                except:
+                    print('Bezáratlan')
+                    self.disconnect(connection)
         db.saveMessage(data)
 
 manager = ConnectionManager()
@@ -83,7 +87,7 @@ async def websocket_endpoint(websocket: WebSocket, id: str, password: str):
             data = await websocket.receive_text()
             data = loads(data)
             data.update({'t': round(time.time(), 3)})
-            
+            print(data)
             if data['d']: await manager.broadcast(data, websocket)
     except WebSocketDisconnect:
         manager.disconnect(websocket)

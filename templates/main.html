@@ -73,15 +73,19 @@
       <p class="text-center">Nincs itt semmi látnivaló</p>
     </div>
   </div>
-  <div id="overlay" class="active"></div>
-  <div id="media-selector-popup" class="active">
-    <h2>Select the files you want to send</h2>
-    <div id="media-sel-div"></div>
+  <div id="overlay" onclick="closeSelector()"></div>
+  <div id="media-selector-popup">
+    <div id="send-media-div">
+      <h2>Válaszd ki a küldeni kívánt fájlokat</h2>
+      <button id="send-img" onclick="sendSelectedMedia()">Küldés</button>
+    </div>
+    <div id="media-sel-div" class="style-1"></div>
   </div>
 </body>
 <link rel="stylesheet" href="static\css\icons.css" />
 <link rel="stylesheet" href="static\css\main.css" />
 <link rel="stylesheet" href="static\css\chat.css" />
+<link rel="stylesheet" href="static\css\scrollbars.css" />
 <script src="static\js\main.js"></script>
 
 </html>

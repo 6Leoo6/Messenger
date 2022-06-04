@@ -250,7 +250,7 @@ async function visualizeFriends() {
         <table class="message-table" id="${user['contacts'][id]}-msgs"><tbody></tbody></table>
         <form class="message-form" id="${user['contacts'][id]}-send" action="" onsubmit="sendMessage(event, id)">
             <div class="msg-form-div">
-                <a href="javascript:void(0)" oclick="loadFileSelector()" class="upload-link">
+                <a id="${user['contacts'][id]}-opener" href="javascript:void(0)" onclick="loadFileSelector(id)" class="upload-link">
                     <span class="material-symbols-outlined upload-icon">
                         file_upload
                     </span>
@@ -308,7 +308,6 @@ async function loadChat(chatId) {
 }
 
 async function visualizeMessages(data) {
-    console.log(data)
     const scrollPos = window.scrollY
     const scrollable = document.documentElement.scrollHeight - window.innerHeight
     var user = JSON.parse(getUser())
@@ -329,7 +328,13 @@ async function visualizeMessages(data) {
     var d = new Date(0)
     d.setUTCSeconds(data['t'])
     var messages = document.getElementById(data['i'] + '-msgs')
-    var msg = `<div class="msg-div" id="${data['a']}-${data['t']}" onclick="showTime(id)"><p>${data['d']}</p></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
+    if(data['c'] == 't'){
+        var msg = `<div class="msg-div" id="${data['a']}-${data['t']}" onclick="showTime(id)"><p>${data['d']}</p></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
+    }
+    else {
+        var msg = `<div class="msg-img-div" id="${data['a']}-${data['t']}" onclick="showTime(id)"><img src="/img/${data['a']}/${data['d']}"/></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
+    }
+
     try {
 
         var lastRow = messages.children.item(0).children.item(messages.children.item(0).childElementCount - 1)
@@ -389,7 +394,12 @@ async function storeMsgsToStr(data, storeMsgs) {
 
     var d = new Date(0)
     d.setUTCSeconds(data['t'])
-    var msg = `<div class="msg-div" id="${data['a']}-${data['t']}" onclick="showTime(id)"><p>${data['d']}</p></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
+    if(data['c'] == 't'){
+        var msg = `<div class="msg-div" id="${data['a']}-${data['t']}" onclick="showTime(id)"><p>${data['d']}</p></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
+    }
+    else {
+        var msg = `<div class="msg-img-div" id="${data['a']}-${data['t']}" onclick="showTime(id)"><img src="/img/${data['a']}/${data['d']}"/></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
+    }
     try {
         var lastRow = storeMsgs.children.item(0).lastChild
         if(lastRow == null) {throw 'No rows'}
@@ -447,7 +457,7 @@ function sendMessage(event, id) {
         ws.send(JSON.stringify(data))
     }
     catch{
-        location
+        location = '/'
     }
     
     input.value = ''
@@ -512,11 +522,11 @@ document.addEventListener('scroll', async function(event) {
                 var storeMsgs = document.createElement('table')
                 storeMsgs.innerHTML += '<tbody></tbody>'
                 for(log of data) {
-                    log = JSON.parse(log)
                     if(parseInt(log['i']) != -1){
                         howManyLoaded[chatId].push(parseInt(log['i']))
                         window.sessionStorage.setItem('howManyLoaded', JSON.stringify(howManyLoaded))
                     }
+                    console.log(log['msgs'])
                     for(var [time, msg] of Object.entries(log['msgs'])){
                         msg['t'] = time
                         msg['i'] = chatId
@@ -558,6 +568,10 @@ async function loadGallery() {
 
     if(window.sessionStorage.getItem('galleryLoaded') == 'true') {return}
 
+    await loadGalleryItems()
+}
+
+async function loadGalleryItems() {
     var user = JSON.parse(getUser())
 
     var url = new URL(location.origin + '/api/list_media')
@@ -569,6 +583,7 @@ async function loadGallery() {
     var data = res['data']
 
     var gallery = document.getElementById('gallery-items')
+    var selector = document.getElementById('media-sel-div')
     for(const img_id of data.reverse()) {
         gallery.innerHTML += 
         `<div id="${img_id}-div" class="img-holder">
@@ -577,13 +592,20 @@ async function loadGallery() {
         <span class="material-symbols-outlined">delete</span>
         </a>
         </div>`
+
+        selector.innerHTML += 
+        `<div id="${img_id}-sel-div" class="img-holder">
+        <img src="/img/${user['id']}/${img_id}">
+        <a id="${img_id}-sel" onclick="selectFile(id)" href="javascript:void(0)" class="select-icon-media">
+        <span class="material-symbols-outlined">check_box_outline_blank</span>
+        </a>
+        </div>`
     }
     window.sessionStorage.setItem('galleryLoaded', true)
 }
 
 async function uploadFile(event) {
     event.preventDefault()
-    console.log(event)
     file = new FileReader()
     try {
         file.readAsBinaryString(event.srcElement[0].files[0])
@@ -601,9 +623,9 @@ async function uploadFile(event) {
         res = await res.json()
         if (res['status'] == 400) {return}
         data = res['data']
-        console.log(data)
 
         var gallery = document.getElementById('gallery-items')
+        var selector = document.getElementById('media-sel-div')
         gallery.innerHTML = 
         `<div id="${data}-div" class="img-holder">
         <img src="/img/${user['id']}/${data}">
@@ -612,11 +634,19 @@ async function uploadFile(event) {
         </a>
         </div>`
         + gallery.innerHTML
+
+        selector.innerHTML += 
+        `<div id="${data}-sel-div" class="img-holder">
+        <img src="/img/${user['id']}/${data}">
+        <a id="${data}-sel" onclick="selectFile(id)" href="javascript:void(0)" class="select-icon-media">
+        <span class="material-symbols-outlined">check_box_outline_blank</span>
+        </a>
+        </div>`
+        + selector.innerHTML
     }
 }
 
 async function deleteMedia(id) {
-    console.log(id)
     var user = JSON.parse(getUser())
     var url = new URL(location.origin + '/api/delete_media')
     url.searchParams.set('id', user['id'])
@@ -626,11 +656,69 @@ async function deleteMedia(id) {
     res = await res.json()
     if (res['status'] == 400) {return}
     document.getElementById(id + '-div').remove()
+    document.getElementById(id + '-sel-div').remove()
 }
 
-function loadFileSelector() {
-    
+function loadFileSelector(id) {
+    document.getElementById('overlay').classList.add('active')
+    document.getElementById('media-selector-popup').classList.add('active')
+    document.getElementById('media-selector-popup').classList.add(id.split('-')[0] + '-media')
 }
+
+function selectFile(id) {
+    var check = document.getElementById(id)
+    
+
+    if(check.classList.contains('active')){
+        check.children.item(0).innerHTML = 'check_box_outline_blank'
+        check.classList.remove('active')
+    }
+    else {
+        check.children.item(0).innerHTML = 'check_box'
+        check.classList.add('active')
+    }
+}
+
+function closeSelector() {
+    document.getElementById('overlay').classList.remove('active')
+    document.getElementById('media-selector-popup').classList.remove('active')
+    document.getElementById('media-selector-popup').classList.remove('select-icon-media')
+    for(const img of document.querySelectorAll('.select-icon-media.active')) {
+        selectFile(img.id)
+    }
+}
+
+async function sendSelectedMedia() {
+    for(const cl of document.getElementById('media-selector-popup').classList) {
+        if(cl.endsWith('media')) {
+            var id = cl.split('-')[0]
+        }
+    }
+    console.log(id)
+    
+    for(const img of document.querySelectorAll('.select-icon-media.active')) {
+        if(!(ws.readyState === ws.OPEN)){
+            setupWS()
+        }
+        var user = JSON.parse(getUser())
+        var data = {
+            'i': id, //chatID
+            'a': user['id'], //author
+            'c': 'i', //content: image
+            'd': img.id.split('-')[0] //imageId
+        }
+        try{
+            ws.send(JSON.stringify(data))
+            
+        }
+        catch{
+            location = '/'
+        }
+    }
+    closeSelector()
+    window.scrollTo(0, document.body.scrollHeight)
+}
+
 
 if(getUser() == undefined){
     location = '/'
@@ -648,3 +736,6 @@ document.getElementById('self-name').innerText = JSON.parse(getUser())['userN']
 
 visualizeFriends()
 
+loadGalleryItems()
+
+//loadFileSelector()
