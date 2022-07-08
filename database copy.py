@@ -1,12 +1,12 @@
-from ast import Index
-from msilib.schema import Error
-import psycopg2
-from psycopg2 import pool
-from psycopg2 import errors
 import json
+import os
+import pathlib
 import random
 import re
 import string
+import time
+
+from psycopg2 import errors, pool
 
 
 class DB():
@@ -338,24 +338,27 @@ class DB():
         self.chats_pool.putconn(conn)
         return log
 
-    def uploadMedia(self, data, img_bytes: bytes, id, password):
-        conn, cur = self.connect_images()
+    def uploadMedia(self, media_type, img_bytes: bytes, id, password):
+        p = pathlib.Path(__file__).parent.resolve() / 'media_storage'
         if not self.auth(id, password):
-            self.imgs_pool.putconn(conn)
             return 'auth'
+        img_id = str(id) + str(time.time()).replace('.', '')
 
-        cur.execute('SELECT * FROM images WHERE author=%s AND img=%s', [id, img_bytes])
-        if cur.fetchall():
-            self.imgs_pool.putconn(conn)
-            return 'duplicate'
-        while True:
-            img_id = self.generate_id(16, 16)
-            cur.execute('SELECT id FROM images WHERE id=%s', [img_id])
-            if not cur.fetchall():
-                break
-        cur.execute('INSERT INTO images VALUES (%s, %s, %s, %s)', [img_id, id, json.dumps(data), psycopg2.Binary(img_bytes)])
-        conn.commit()
-        self.imgs_pool.putconn(conn)
+        if not os.path.exists(p):
+            os.mkdir(p)
+        if not os.path.exists(p / id):
+            os.mkdir(p / id)
+
+        for file in filter(lambda x: os.path.isfile(p / id / x), os.listdir(p / id)):
+            with open(p / id / file, 'rb') as f:
+                if f.read(100) == img_bytes[:100]:
+                    f.seek(0)
+                    if f.read() == img_bytes:
+                        print('dup')
+                        return 'duplicate'
+
+        with open(p / id / f'{img_id}.{media_type.split("/")[-1]}', 'wb') as f:
+            f.write(bytes(img_bytes))
 
         conn, cur = self.connect_user()
         cur.execute('SELECT images FROM users WHERE id=%s', [id])
@@ -367,13 +370,6 @@ class DB():
         conn.commit()
         self.users_pool.putconn(conn)
         return img_id
-    
-    def uploadToDefault(self, data, img_bytes: bytes, id='not_found'):
-        data = {"name": "not-found.png", "type": "image/png"}
-        conn, cur = self.connect_images()
-        cur.execute('INSERT INTO system VALUES (%s, %s, %s)', [id, json.dumps(data), img_bytes])
-        conn.commit()
-        self.imgs_pool.putconn(conn)
 
  
     def getMedia(self, userId, imgId):
@@ -450,4 +446,5 @@ if __name__ == '__main__':
     #print(db.auth("6ps21z7gNT108Uy2", "Szuperjelszo007"))
     #print(db.registerUser("Leó", "Takács", "Leoo", "leo.takacs@yahoo.com", "Szuperjelszo007"))
     #print(db.deleteMedia("6ps21z7gNT108Uy2", "Szuperjelszo007", "582tL22hMQdyQ1V7061cl06i8N5aoK62"))
-    print(db.getMediaType('y2o42i6ql38R1e10unk90sG7zj25g7b8'))
+    #print(db.getMediaType('y2o42i6ql38R1e10unk90sG7zj25g7b8'))
+    pass

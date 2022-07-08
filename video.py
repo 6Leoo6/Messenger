@@ -1,7 +1,9 @@
 import os
-from fastapi import Request, HTTPException, status
 from typing import BinaryIO
+
+from fastapi import HTTPException, Request, status
 from fastapi.responses import StreamingResponse
+
 
 def send_bytes_range_requests(
     file_obj: BinaryIO, start: int, end: int, chunk_size: int = 10_000
@@ -37,14 +39,9 @@ def _get_range_header(range_header: str, file_size: int) -> tuple[int, int]:
 
 
 def range_requests_response(
-    request: Request, file_id: str, file_bytes: bytes, content_type: str
+    request: Request, file_path: str, content_type: str
 ):
     """Returns StreamingResponse using Range Requests of a given file"""
-    
-    file_path = f'static/loaded_videos/{file_id}.{content_type.split("/")[-1]}'
-    if not os.path.exists(file_path):
-        with open(file_path, 'wb') as f:
-            f.write(file_bytes)
 
     file_size = os.stat(file_path).st_size
     range_header = request.headers.get("range")

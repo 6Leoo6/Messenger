@@ -1,16 +1,17 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response, UploadFile, File
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
+import os
+import time
+from json import dumps, loads
 from pathlib import Path
 from typing import List
-from json import loads, dumps
-import time
-import os
+
+from fastapi import (FastAPI, File, Request, Response, UploadFile, WebSocket,
+                     WebSocketDisconnect)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from database import db
 from video import range_requests_response
-
 
 app = FastAPI()
 
@@ -32,9 +33,6 @@ app.mount(
     name="static",
 )
 
-dir = 'static/loaded_videos'
-for f in os.listdir(dir):
-    os.remove(os.path.join(dir, f))
 
 class ConnectionManager:
     def __init__(self):
@@ -108,11 +106,8 @@ def get_image(userId, imgId):
     res = db.getMedia(userId, imgId)
     if res in ['badRoute']:
         res = db.getMedia('default', 'not_found')
-    
-    try:
-        return Response(content=res[3].tobytes(), media_type=res[2]['type'])
-    except IndexError:
-        return Response(content=res[2].tobytes(), media_type=res[1]['type'])
+    return Response(content=res[0], media_type=res[1])
+
 
 @app.get("/video/{userId}/{imgId}")
 def get_video(userId, imgId, request: Request):
@@ -120,14 +115,13 @@ def get_video(userId, imgId, request: Request):
     if res in ['badRoute']:
         return 'Not found'
     return range_requests_response(
-        request, file_id=imgId, file_bytes=res[3].tobytes(), content_type=res[2]['type']
+        request, file_path=res[0], content_type=res[1]
     )
 
 @app.post("/uploadfile")
 async def upload_file(id, password, file: UploadFile = File(...)):
-    data = {'name':file.filename,'type':file.content_type}
     file_byte = await file.read()
-    res = db.uploadMedia(data, file_byte, id, password)
+    res = db.uploadMedia(file.content_type, file_byte, id, password)
     if res in ['auth', 'duplicate']:
         return {'status': 400, 'error': res}
     return {'status':200, 'data': res}

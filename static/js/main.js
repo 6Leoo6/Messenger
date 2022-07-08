@@ -609,7 +609,7 @@ async function loadGalleryItems() {
             var innerMedia = `<img src="/img/${user['id']}/${img_id}"></img>`
         }
         else if(ty == 'video') {
-            var innerMedia = `<video width="200" height="200" name="media"><source src="/img/${user['id']}/${img_id}" type="${t}"></video>`
+            var innerMedia = `<video width="275" height="275" name="media"><source src="/img/${user['id']}/${img_id}" type="${t}"></video>`
         }
 
         gallery.innerHTML += 
@@ -646,7 +646,6 @@ async function uploadFile(event) {
         url.searchParams.set('password', user['password'])
         const formData = new FormData()
         formData.append('file', event.srcElement[0].files[0])
-        console.log(event.srcElement[0].files)
         var res = await fetch(url, { method: "POST", body: formData})
         res = await res.json()
         if (res['status'] == 400) {return}

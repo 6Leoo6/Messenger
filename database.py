@@ -1,12 +1,13 @@
-from ast import Index
-from msilib.schema import Error
-import psycopg2
-from psycopg2 import pool
-from psycopg2 import errors
 import json
+import os
+import pathlib
 import random
 import re
 import string
+import time
+import cv2
+
+from psycopg2 import errors, pool
 
 
 class DB():
@@ -237,7 +238,6 @@ class DB():
         first_seed, second_seed = sorted([id, idTo])
 
         chatId = self.generate_id(16, 0, first_seed, second_seed)
-        print(chatId)
   
         cur_chats.execute(f'CREATE TABLE IF NOT EXISTS {chatId} (number int, data json)')
         cur_chats.execute(f'SELECT number FROM {chatId}')
@@ -338,24 +338,41 @@ class DB():
         self.chats_pool.putconn(conn)
         return log
 
-    def uploadMedia(self, data, img_bytes: bytes, id, password):
-        conn, cur = self.connect_images()
+    def uploadMedia(self, media_type, img_bytes: bytes, id, password):
+        p = pathlib.Path(__file__).parent.resolve() / 'media_storage'
         if not self.auth(id, password):
-            self.imgs_pool.putconn(conn)
             return 'auth'
+        img_id = str(id) + str(time.time()).replace('.', '')
 
-        cur.execute('SELECT * FROM images WHERE author=%s AND img=%s', [id, img_bytes])
-        if cur.fetchall():
-            self.imgs_pool.putconn(conn)
-            return 'duplicate'
-        while True:
-            img_id = self.generate_id(16, 16)
-            cur.execute('SELECT id FROM images WHERE id=%s', [img_id])
-            if not cur.fetchall():
-                break
-        cur.execute('INSERT INTO images VALUES (%s, %s, %s, %s)', [img_id, id, json.dumps(data), psycopg2.Binary(img_bytes)])
-        conn.commit()
-        self.imgs_pool.putconn(conn)
+        if not os.path.exists(p):
+            os.mkdir(p)
+        if not os.path.exists(p / id):
+            os.mkdir(p / id)
+        if not os.path.exists(p / id / 'videos'):
+            os.mkdir(p / id / 'videos')
+        if not os.path.exists(p / id / 'videos' / 'index_imgs'):
+            os.mkdir(p / id / 'videos' / 'index_imgs')
+        if not os.path.exists(p / id / 'images'):
+            os.mkdir(p / id / 'images')
+        
+        typ = media_type.split('/')[0] + 's'
+        
+        for file in filter(lambda x: os.path.isfile(p / id / typ / x), os.listdir(p / id / typ)):
+            with open(p / id / file, 'rb') as f:
+                if f.read(100) == img_bytes[:100]:
+                    f.seek(0)
+                    if f.read() == img_bytes:
+                        return 'duplicate'
+
+        with open(p / id / typ / f'{img_id}.{media_type.split("/")[-1]}', 'wb') as f:
+            f.write(bytes(img_bytes))
+
+        if media_type.split('/')[0] == 'video':
+            vidcap = cv2.VideoCapture(str(p / id / typ / f'{img_id}.{media_type.split("/")[-1]}'))
+            success, image = vidcap.read()
+            if success:
+                with open(p / id / typ / 'index_imgs' / f"{img_id}.jpg", 'wb') as f:
+                    f.write(cv2.imencode('.jpg', image)[1].tostring())
 
         conn, cur = self.connect_user()
         cur.execute('SELECT images FROM users WHERE id=%s', [id])
@@ -367,30 +384,20 @@ class DB():
         conn.commit()
         self.users_pool.putconn(conn)
         return img_id
-    
-    def uploadToDefault(self, data, img_bytes: bytes, id='not_found'):
-        data = {"name": "not-found.png", "type": "image/png"}
-        conn, cur = self.connect_images()
-        cur.execute('INSERT INTO system VALUES (%s, %s, %s)', [id, json.dumps(data), img_bytes])
-        conn.commit()
-        self.imgs_pool.putconn(conn)
 
  
     def getMedia(self, userId, imgId):
-        conn, cur = self.connect_images()
-        if userId != 'default':
-            cur.execute(f'SELECT * FROM images WHERE author=%s AND id=%s', [userId, imgId])
+        p = pathlib.Path(__file__).parent.resolve() / 'media_storage'
+        if imgId in map(lambda x: x.split('.')[0], os.listdir(p / userId / 'videos')):
+            filename = [file for file in os.listdir(p / userId / 'videos') if file.startswith(imgId)][0]
+            media_type = 'video/' + filename.split('.')[-1]
+            return p / userId / 'videos' / filename, media_type
+        elif imgId in map(lambda x: x.split('.')[0], os.listdir(p / userId / 'images')):
+            filename = [file for file in os.listdir(p / userId / 'images') if file.startswith(imgId)][0]
+            media_type = 'image/' + filename.split('.')[-1]
+            return open(p / userId / 'images' / filename, 'rb').read(), media_type
         else:
-            cur.execute(f'SELECT * FROM system WHERE id=%s', [imgId])
-        try:
-            data = cur.fetchone()
-            self.imgs_pool.putconn(conn)
-            if not data: return 'badRoute'
-            return data
-        except IndexError:
-            self.imgs_pool.putconn(conn)
             return 'badRoute'
-
 
     def deleteMedia(self, userId, password, imgId):
         conn, cur = self.connect_user()
@@ -411,11 +418,15 @@ class DB():
         cur.execute('UPDATE users SET images=%s WHERE id=%s', [json.dumps(imgs), userId])
         conn.commit()
         self.users_pool.putconn(conn)
-
-        conn, cur = self.connect_images()
-        cur.execute('DELETE FROM images WHERE id=%s', [imgId])
-        conn.commit()
-        self.imgs_pool.putconn(conn)
+        
+        p = pathlib.Path(__file__).parent.resolve() / 'media_storage'
+        if imgId in map(lambda x: x.split('.')[0], os.listdir(p / userId / 'videos')):
+            filename = [file for file in os.listdir(p / userId / 'videos') if file.startswith(imgId)][0]
+            os.remove(p / userId / 'videos' / filename)
+            os.remove(p / userId / 'videos' / 'index_imgs' / imgId + '.jpg')
+        elif imgId in map(lambda x: x.split('.')[0], os.listdir(p / userId / 'images')):
+            filename = [file for file in os.listdir(p / userId / 'images') if file.startswith(imgId)][0]
+            os.remove(p / userId / 'images' / filename)
 
     
     def listMedia(self, id, password):
@@ -426,18 +437,18 @@ class DB():
         if not fetch:
             return 'badLogin'
         try:
-            return [[img, self.getMediaType(img)] for img in fetch[0]['images']]
+            return [[img, self.getMediaType(img, id)] for img in fetch[0]['images']]
         except TypeError:
             return []
 
-    def getMediaType(self, imgId):
-        conn, cur = self.connect_images()
-        cur.execute('SELECT data FROM images WHERE id=%s', [imgId])
-        data = cur.fetchone()
-        self.imgs_pool.putconn(conn)
-        if not data: 
+    def getMediaType(self, imgId, userId):
+        p = pathlib.Path(__file__).parent.resolve() / 'media_storage'
+        if imgId in map(lambda x: x.split('.')[0], os.listdir(p / userId / 'videos')):
+            return 'video'
+        elif imgId in map(lambda x: x.split('.')[0], os.listdir(p / userId / 'images')):
+            return 'image'
+        else:
             return 'notExists'
-        return data[0]['type']
 
 
 
