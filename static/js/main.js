@@ -341,6 +341,8 @@ async function visualizeMessages(data) {
         var msg = `<div class="msg-div" id="${data['a']}-${data['t']}" onclick="showTime(id)"><p>${data['d']}</p></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
     }
     else {
+        var type = 'img'
+
         var msg = `<div class="msg-img-div" id="${data['a']}-${data['t']}" onclick="showTime(id)"><img src="/img/${data['a']}/${data['d']}"/></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
     }
 
@@ -534,7 +536,6 @@ document.addEventListener('scroll', async function(event) {
                         
                     }      
                 }
-                console.log(tempLog)
                 data.push(tempLog)
                 messages.firstChild.children.item(0).remove()
 
@@ -602,10 +603,18 @@ async function loadGalleryItems() {
 
     var gallery = document.getElementById('gallery-items')
     var selector = document.getElementById('media-sel-div')
-    for(const img_id of data.reverse()) {
+    for(const [img_id, t] of data.reverse()) {
+        ty = t.split('/')[0]
+        if(ty == 'image') {
+            var innerMedia = `<img src="/img/${user['id']}/${img_id}"></img>`
+        }
+        else if(ty == 'video') {
+            var innerMedia = `<video width="200" height="200" name="media"><source src="/img/${user['id']}/${img_id}" type="${t}"></video>`
+        }
+
         gallery.innerHTML += 
         `<div id="${img_id}-div" class="img-holder">
-        <img src="/img/${user['id']}/${img_id}">
+        ${innerMedia}
         <a id="${img_id}" onclick="deleteMedia(id)" href="javascript:void(0)" class="trashcan-icon-gallery">
         <span class="material-symbols-outlined">delete</span>
         </a>
@@ -613,7 +622,7 @@ async function loadGalleryItems() {
 
         selector.innerHTML += 
         `<div id="${img_id}-sel-div" class="img-holder">
-        <img src="/img/${user['id']}/${img_id}">
+        ${innerMedia}
         <a id="${img_id}-sel" onclick="selectFile(id)" href="javascript:void(0)" class="select-icon-media">
         <span class="material-symbols-outlined">check_box_outline_blank</span>
         </a>
@@ -637,6 +646,7 @@ async function uploadFile(event) {
         url.searchParams.set('password', user['password'])
         const formData = new FormData()
         formData.append('file', event.srcElement[0].files[0])
+        console.log(event.srcElement[0].files)
         var res = await fetch(url, { method: "POST", body: formData})
         res = await res.json()
         if (res['status'] == 400) {return}

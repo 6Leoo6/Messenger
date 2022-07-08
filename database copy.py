@@ -430,14 +430,14 @@ class DB():
         except TypeError:
             return []
 
-    def getMediaType(self, imgId):
+'''   def getMediaType(self, imgId):
         conn, cur = self.connect_images()
         cur.execute('SELECT data FROM images WHERE id=%s', [imgId])
         data = cur.fetchone()
         self.imgs_pool.putconn(conn)
         if not data: 
             return 'notExists'
-        return data[0]['type']
+        return data[0]['type']'''
 
 
 

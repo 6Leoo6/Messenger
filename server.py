@@ -2,14 +2,14 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response, 
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import StreamingResponse
 from pathlib import Path
 from typing import List
 from json import loads, dumps
 import time
-import json
+import os
 
 from database import db
+from video import range_requests_response
 
 
 app = FastAPI()
@@ -31,6 +31,10 @@ app.mount(
     StaticFiles(directory=Path(__file__).parent.absolute() / "static"),
     name="static",
 )
+
+dir = 'static/loaded_videos'
+for f in os.listdir(dir):
+    os.remove(os.path.join(dir, f))
 
 class ConnectionManager:
     def __init__(self):
@@ -58,6 +62,7 @@ class ConnectionManager:
                 except:
                     print('Bezáratlan')
                     self.disconnect(connection)
+        print(data)
         db.saveMessage(data)
 
 manager = ConnectionManager()
@@ -75,6 +80,10 @@ def register(req: Request):
 @app.get('/main')
 def home(req: Request):
     return templates.TemplateResponse('main.html', {'request': req})
+
+@app.get('/t')
+def home(req: Request):
+    return templates.TemplateResponse('test.html', {'request': req})
 
 #-------------------------------------Web Sockets----------------------------------------
 @app.websocket("/ws/{id}")
@@ -104,6 +113,15 @@ def get_image(userId, imgId):
         return Response(content=res[3].tobytes(), media_type=res[2]['type'])
     except IndexError:
         return Response(content=res[2].tobytes(), media_type=res[1]['type'])
+
+@app.get("/video/{userId}/{imgId}")
+def get_video(userId, imgId, request: Request):
+    res = db.getMedia(userId, imgId)
+    if res in ['badRoute']:
+        return 'Not found'
+    return range_requests_response(
+        request, file_id=imgId, file_bytes=res[3].tobytes(), content_type=res[2]['type']
+    )
 
 @app.post("/uploadfile")
 async def upload_file(id, password, file: UploadFile = File(...)):
