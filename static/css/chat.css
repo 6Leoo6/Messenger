@@ -2,6 +2,10 @@
     --send-btn-w: 75px;
 }
 
+.message-form {
+    z-index: 30;
+}
+
 .message-form input {
     padding: 0 10px;
     border: none;
@@ -24,7 +28,7 @@
     width: 100%;
     border-collapse: separate;
     border-spacing: 10px;
-    margin-bottom: 35px;
+    margin-bottom: 40px;
     padding-top: 60px;
 }
 
@@ -45,6 +49,7 @@
     padding: 4px 10px;
     width: fit-content;
     margin-bottom: 2px;
+    cursor: pointer;
 }
 
 .row-div {
@@ -83,6 +88,7 @@
 }
 
 .name-div {
+    z-index: 100;
     position: fixed;
     display: flex;
     justify-content: start;
@@ -103,8 +109,11 @@
 }
 
 .msg-img-div {
-    width: 275px;
+    width: 80%;
+    min-width: 275px;
+    max-height: 1000px;
     margin: 3px 0;
+    cursor: pointer;
 }
 
 .msg-img-div img {
@@ -112,4 +121,24 @@
     height: 100%;
     object-fit: cover;
     border-radius: 15px;
+}
+
+.msg-index-img-div {
+    position: relative;
+    background-color: black;
+    border-radius: 17px;
+    z-index: 10;
+}
+
+.msg-index-img-div img {
+    opacity: 50%;
+}
+
+.msg-index-img-div span {
+    top: 50%;
+    left: 50%;
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-size: 100px;
+    z-index: 20;
 }

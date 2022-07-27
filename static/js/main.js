@@ -74,14 +74,14 @@ async function calculateFriendDiv() {
     await getUserData()
     var user = JSON.parse(getUser())
     var namesById = JSON.parse(window.localStorage.getItem("namesbyid"))
-    if(namesById == null){
+    if (namesById == null) {
         window.localStorage.setItem("namesbyid", "{}")
     }
     var namesById = JSON.parse(window.localStorage.getItem("namesbyid"))
     var inc = ''
     var out = ''
     for (const [key, value] of Object.entries(user['friend_req'])) {
-        if(namesById[key] == undefined) {
+        if (namesById[key] == undefined) {
             var url = new URL(location.origin + "/api/get_usern_by_id")
             url.searchParams.set("id", key)
             var res = await fetch(url, { method: "POST" })
@@ -193,19 +193,9 @@ async function addFriend() {
 }
 
 async function getUserData() {
-    var user = JSON.parse(getUser())
-
-    if (user == null) {
-        location.href = "/"
-    }
-
-    var email = user["email"]
-    var password = user["password"]
-
-    var url = new URL(document.location.origin + "/api/login")
-    url.searchParams.set("email", email)
-    url.searchParams.set("password", password)
-    var res = await fetch(url, { method: "POST" })
+    var url = new URL(document.location.origin + "/api/get_user_data")
+    url.searchParams.set("sid", window.localStorage.getItem('sid'))
+    var res = await fetch(url, { method: "GET" })
     var data = await res.json()
 
     if (data["status"] == 200) {
@@ -216,11 +206,10 @@ async function getUserData() {
             id: data[2],
             userN: data[3],
             email: data[4],
-            password: data[5],
-            contacts: data[6],
-            groups: data[7],
-            settings: data[8],
-            friend_req: data[9],
+            contacts: data[5],
+            groups: data[6],
+            settings: data[7],
+            friend_req: data[8],
         }
         window.localStorage.setItem("user", JSON.stringify(userData))
     } else {
@@ -269,11 +258,11 @@ async function visualizeFriends() {
 
 async function loadChat(chatId) {
     chatId = chatId.split('-')[0]
-    if(JSON.parse(window.sessionStorage.getItem('scrollPos'))[chatId]){
+    if (JSON.parse(window.sessionStorage.getItem('scrollPos'))[chatId]) {
         window.scrollTo(0, JSON.parse(window.sessionStorage.getItem('scrollPos'))[chatId])
     }
     var howManyLoaded = JSON.parse(window.sessionStorage.getItem('howManyLoaded'))
-    if(howManyLoaded[chatId]){return}
+    if (howManyLoaded[chatId]) { return }
     window.sessionStorage.setItem('currentlyLoading', true)
     var user = JSON.parse(getUser())
     var url = new URL(location.origin + "/api/get_messages")
@@ -292,9 +281,9 @@ async function loadChat(chatId) {
     var messages = document.getElementById(chatId + '-msgs')
     messages.children.item(0).innerHTML = ''
     howManyLoaded[chatId] = []
-    for(log of data) {
+    for (log of data) {
         howManyLoaded[chatId].push(parseInt(log['i']))
-        for(var [time, msg] of Object.entries(log['msgs'])){
+        for (var [time, msg] of Object.entries(log['msgs'])) {
             msg['t'] = time
             msg['i'] = chatId
             visualizeMessages(msg)
@@ -313,7 +302,7 @@ function showChat(chatId) {
         top: document.body.scrollHeight,
         left: 0,
         behavior: 'instant',
-      })
+    })
 }
 
 async function visualizeMessages(data) {
@@ -337,35 +326,36 @@ async function visualizeMessages(data) {
     var d = new Date(0)
     d.setUTCSeconds(data['t'])
     var messages = document.getElementById(data['i'] + '-msgs')
-    if(data['c'] == 't'){
+    if (data['c'] == 't') {
         var msg = `<div class="msg-div" id="${data['a']}-${data['t']}" onclick="showTime(id)"><p>${data['d']}</p></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
     }
-    else {
-        var type = 'img'
-
-        var msg = `<div class="msg-img-div" id="${data['a']}-${data['t']}" onclick="showTime(id)"><img src="/img/${data['a']}/${data['d']}"/></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
+    else if (data['c'] == 'v') {
+        var msg = `<div class="msg-img-div msg-index-img-div"  id="${data['a']}-${data['t']}" onclick="showTime(id)"><img src="/img/${data['a']}/${data['d']}?isindexi=1"/><span onclick="fullscreenMedia('${data['a']}', '${data['d']}', 'v', '${data['a']}-${data['t']}-time')" class="material-symbols-outlined">play_arrow</span></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
+    }
+    else if (data['c'] == 'i') {
+        var msg = `<div class="msg-img-div"  id="${data['a']}-${data['t']}" onclick="fullscreenMedia('${data['a']}', '${data['d']}', 'i', '${d.toLocaleString()}')"><img src="/img/${data['a']}/${data['d']}"/></div>`
     }
 
     try {
 
         var lastRow = messages.children.item(0).children.item(messages.children.item(0).childElementCount - 1)
-        if(lastRow == null) {throw 'First row'}
+        if (lastRow == null) { throw 'First row' }
         if (lastRow.children.item(0).innerHTML != '' && lastRow.children.item(0).children.item(0).children.item(1).id.split('-')[0] == data['a']) {
             var e = document.getElementById(lastRow.children.item(0).children.item(0).children.item(1).id).parentElement
             e.innerHTML += msg
             scrollToBottom(scrollPos, scrollable)
-            
+
             return
         }
         else if (lastRow.children.item(1).innerHTML != '' && lastRow.children.item(1).children.item(0).children.item(0).id.split('-')[0] == data['a']) {
             var e = document.getElementById(lastRow.children.item(1).children.item(0).children.item(0).id).parentElement
             e.innerHTML += msg
             scrollToBottom(scrollPos, scrollable)
-            
+
             return
         }
     }
-    catch (error) {}
+    catch (error) { }
 
 
     if (user['id'] == data['a']) {
@@ -384,7 +374,7 @@ async function visualizeMessages(data) {
         </tr>
         `
     scrollToBottom(scrollPos, scrollable)
-    
+
 }
 
 async function storeMsgsToStr(data, storeMsgs) {
@@ -405,15 +395,19 @@ async function storeMsgsToStr(data, storeMsgs) {
 
     var d = new Date(0)
     d.setUTCSeconds(data['t'])
-    if(data['c'] == 't'){
+    if (data['c'] == 't') {
         var msg = `<div class="msg-div" id="${data['a']}-${data['t']}" onclick="showTime(id)"><p>${data['d']}</p></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
     }
-    else {
-        var msg = `<div class="msg-img-div" id="${data['a']}-${data['t']}" onclick="showTime(id)"><img src="/img/${data['a']}/${data['d']}"/></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
+    else if (data['c'] == 'v') {
+        var msg = `<div class="msg-img-div msg-index-img-div"  id="${data['a']}-${data['t']}" onclick="showTime(id)"><img src="/img/${data['a']}/${data['d']}?isindexi=1"/><span onclick="fullscreenMedia('${data['a']}', '${data['d']}', 'v', '${data['a']}-${data['t']}-time')" class="material-symbols-outlined">play_arrow</span></div><p class="time-txt" id="${data['a']}-${data['t']}-time" hidden>${d.toLocaleString()}</p>`
     }
+    else if (data['c'] == 'i') {
+        var msg = `<div class="msg-img-div"  id="${data['a']}-${data['t']}" onclick="fullscreenMedia('${data['a']}', '${data['d']}', 'i', '${d}')"><img src="/img/${data['a']}/${data['d']}"/></div>`
+    }
+
     try {
         var lastRow = storeMsgs.children.item(0).lastChild
-        if(lastRow == null) {throw 'No rows'}
+        if (lastRow == null) { throw 'No rows' }
         if (lastRow.children.item(0).innerHTML != '' && lastRow.children.item(0).children.item(0).children.item(1).id.split('-')[0] == data['a']) {
             storeMsgs.children.item(0).lastChild.children.item(0).children.item(0).innerHTML += msg
             return storeMsgs
@@ -423,7 +417,7 @@ async function storeMsgsToStr(data, storeMsgs) {
             return storeMsgs
         }
     }
-    catch (error) {}
+    catch (error) { }
 
 
     if (user['id'] == data['a']) {
@@ -434,16 +428,16 @@ async function storeMsgsToStr(data, storeMsgs) {
         other_side = `<div class="left row-div"><p class="name-tag">${namesById[data['a']]}</p>${msg}</div>`
         own_side = ''
     }
-    
-    
+
+
     storeMsgs.children.item(0).innerHTML += `<tr><td>${other_side}</td><td>${own_side}</td></tr>`
     return storeMsgs
 }
 
 
-function setupWS(){
+function setupWS() {
     var user = JSON.parse(getUser())
-    window.ws = new WebSocket('ws://' + location.origin.split('//')[1] + `/ws/${user['id']}?password=${user['password']}`)
+    window.ws = new WebSocket('ws://' + location.origin.split('//')[1] + `/ws/${window.localStorage.getItem('sid')}`)
     ws.onmessage = async function (event) {
         var data = JSON.parse(event.data)
         visualizeMessages(data)
@@ -452,7 +446,7 @@ function setupWS(){
 
 
 function sendMessage(event, id) {
-    if(!(ws.readyState === ws.OPEN)){
+    if (!(ws.readyState === ws.OPEN)) {
         setupWS()
     }
     var user = JSON.parse(getUser())
@@ -460,17 +454,17 @@ function sendMessage(event, id) {
     var input = document.getElementById(id + "-msgt")
     var data = {
         'i': id, //chatID
-        'a': user['id'], //author
         'c': 't', //content: txt/media
         'd': input.value //data
     }
-    try{
+    try {
         ws.send(JSON.stringify(data))
     }
-    catch{
+    catch {
+        console.log('msg')
         location = '/'
     }
-    
+
     input.value = ''
     event.preventDefault()
 }
@@ -481,27 +475,27 @@ function scrollToBottom(scrollPos, scrollable) {
             top: document.body.scrollHeight,
             left: 0,
             behavior: 'instant',
-          })
+        })
     }
 }
 
-document.addEventListener('scroll', async function(event) {
+document.addEventListener('scroll', async function (event) {
     const scrollPos = window.scrollY
     const scrollable = document.documentElement.scrollHeight - window.innerHeight
     var mainDiv = document.getElementById('main-div')
-    for(child of mainDiv.children){
-        if(child.hidden == false && child.classList.contains('chat')) {
+    for (child of mainDiv.children) {
+        if (child.hidden == false && child.classList.contains('chat')) {
             chatId = child.id.split('-')[0]
             var scrP = JSON.parse(window.sessionStorage.getItem('scrollPos'))
             scrP[chatId] = scrollPos
             window.sessionStorage.setItem('scrollPos', JSON.stringify(scrP))
-            if(scrollPos < 300) {
-                if(window.sessionStorage.getItem('currentlyLoading') == 'true') {
+            if (scrollPos < 300) {
+                if (window.sessionStorage.getItem('currentlyLoading') == 'true') {
                     return
                 }
                 var howManyLoaded = JSON.parse(window.sessionStorage.getItem('howManyLoaded'))
-                var nextToLoad = Math.min(...howManyLoaded[chatId])-1
-                if(howManyLoaded[chatId].includes(nextToLoad) || nextToLoad<1){
+                var nextToLoad = Math.min(...howManyLoaded[chatId]) - 1
+                if (howManyLoaded[chatId].includes(nextToLoad) || nextToLoad < 1) {
                     return
                 }
                 window.sessionStorage.setItem('currentlyLoading', true)
@@ -514,50 +508,50 @@ document.addEventListener('scroll', async function(event) {
                 url.searchParams.set("logIndex", nextToLoad)
                 var res = await fetch(url, { method: "POST" })
                 res = await res.json()
-                if (res['status'] == 400) {return}
+                if (res['status'] == 400) { return }
                 data = res['data']
 
                 var messages = document.getElementById(chatId + '-msgs')
-                if(messages.firstChild.children.item(0).children.item(0).innerHTML == ''){
+                if (messages.firstChild.children.item(0).children.item(0).innerHTML == '') {
                     var oldestMsgs = messages.firstChild.children.item(0).children.item(1).firstChild
                 }
                 else {
                     var oldestMsgs = messages.firstChild.children.item(0).children.item(0).firstChild
                 }
-                var tempLog = {'i':-1, 'msgs': {}}
-                for(var c of oldestMsgs.children){
-                    if(c.tagName === 'DIV') {
-                        if(c.classList.contains('msg-div')) {
-                            tempLog['msgs'][c.id.split('-')[1]] = {'a':c.id.split('-')[0], 'c':'t', 'd':c.firstChild.innerText}
+                var tempLog = { 'i': -1, 'msgs': {} }
+                for (var c of oldestMsgs.children) {
+                    if (c.tagName === 'DIV') {
+                        if (c.classList.contains('msg-div')) {
+                            tempLog['msgs'][c.id.split('-')[1]] = { 'a': c.id.split('-')[0], 'c': 't', 'd': c.firstChild.innerText }
                         }
-                        else if(c.classList.contains('msg-img-div')) {
-                            tempLog['msgs'][c.id.split('-')[1]] = {'a':c.id.split('-')[0], 'c':'i', 'd':c.firstChild.getAttribute("src").split('/')[3]}
+                        else if (c.classList.contains('msg-img-div')) {
+                            tempLog['msgs'][c.id.split('-')[1]] = { 'a': c.id.split('-')[0], 'c': 'i', 'd': c.firstChild.getAttribute("src").split('/')[3] }
                         }
-                        
-                    }      
+
+                    }
                 }
                 data.push(tempLog)
                 messages.firstChild.children.item(0).remove()
 
                 var storeMsgs = document.createElement('table')
                 storeMsgs.innerHTML += '<tbody></tbody>'
-                for(log of data) {
-                    for(var [time, msg] of Object.entries(log['msgs'])){
+                for (log of data) {
+                    for (var [time, msg] of Object.entries(log['msgs'])) {
                         msg['t'] = time
                         msg['i'] = chatId
                         storeMsgs = await storeMsgsToStr(msg, storeMsgs)
                     }
-                    if(parseInt(log['i']) != -1){
+                    if (parseInt(log['i']) != -1) {
                         howManyLoaded[chatId].push(parseInt(log['i']))
                         window.sessionStorage.setItem('howManyLoaded', JSON.stringify(howManyLoaded))
                     }
                 }
-                
+
                 var temp = messages.firstChild.innerHTML
 
                 messages.children.item(0).innerHTML = storeMsgs.lastChild.innerHTML + temp
-                
-                window.scrollTo({top: scrollPos+Math.abs(scrollable-(document.documentElement.scrollHeight - window.innerHeight)), left: 0, behavior: 'instant'})
+
+                window.scrollTo({ top: scrollPos + Math.abs(scrollable - (document.documentElement.scrollHeight - window.innerHeight)), left: 0, behavior: 'instant' })
                 var scrP = JSON.parse(window.sessionStorage.getItem('scrollPos'))
                 scrP[chatId] = scrollPos
                 window.sessionStorage.setItem('scrollPos', JSON.stringify(scrP))
@@ -570,13 +564,16 @@ document.addEventListener('scroll', async function(event) {
 function showTime(id) {
     const scrollPos = window.scrollY
     const scrollable = document.documentElement.scrollHeight - window.innerHeight
-    var time = document.getElementById(id+'-time')
+    if (!id.endsWith('-time')) {
+        id += '-time'
+    }
+    var time = document.getElementById(id)
     var state = time.hidden
     var times = document.querySelectorAll('.time-txt')
-    times.forEach(function(t){
+    times.forEach(function (t) {
         t.hidden = true
     })
-    
+
     time.hidden = !state
     scrollToBottom(scrollPos, scrollable)
 }
@@ -585,7 +582,7 @@ async function loadGallery() {
     hideChildren(true, document.getElementById('main-div').children)
     document.getElementById('gallery').hidden = false
 
-    if(window.sessionStorage.getItem('galleryLoaded') == 'true') {return}
+    if (window.sessionStorage.getItem('galleryLoaded') == 'true') { return }
 
     await loadGalleryItems()
 }
@@ -596,34 +593,39 @@ async function loadGalleryItems() {
     var url = new URL(location.origin + '/api/list_media')
     url.searchParams.set('id', user['id'])
     url.searchParams.set('password', user['password'])
-    var res = await fetch(url, {method: 'GET'})
+    var res = await fetch(url, { method: 'GET' })
     res = await res.json()
-    if(res['status'] == 400){return}
+    if (res['status'] == 400) { return }
     var data = res['data']
 
     var gallery = document.getElementById('gallery-items')
     var selector = document.getElementById('media-sel-div')
-    for(const [img_id, t] of data.reverse()) {
+    for (const [img_id, t] of data.reverse()) {
         ty = t.split('/')[0]
-        if(ty == 'image') {
-            var innerMedia = `<img src="/img/${user['id']}/${img_id}"></img>`
+        var isvideoholder = ''
+        if (ty == 'image') {
+            var innerMedia = `<img onclick="fullscreenMedia('${user['id']}', '${img_id}', 'i')" src="/img/${user['id']}/${img_id}">`
         }
-        else if(ty == 'video') {
-            var innerMedia = `<video width="275" height="275" name="media"><source src="/img/${user['id']}/${img_id}" type="${t}"></video>`
+        else if (ty == 'video') {
+            var innerMedia = `<img src="/img/${user['id']}/${img_id}?isindexi=1"><span onclick="fullscreenMedia('${user['id']}', '${img_id}', 'v')" class="material-symbols-outlined play-btn">play_arrow</span>`
+            isvideoholder = ' video-holder'
         }
+        //`<video width="275" height="275" name="media"><source src="/img/${user['id']}/${img_id}?isindexi=1" type="${t}"></video>`
 
-        gallery.innerHTML += 
-        `<div id="${img_id}-div" class="img-holder">
+        ty = ty[0]
+
+        gallery.innerHTML +=
+            `<div id="${img_id}-div" class="holder${isvideoholder}">
         ${innerMedia}
-        <a id="${img_id}" onclick="deleteMedia(id)" href="javascript:void(0)" class="trashcan-icon-gallery">
-        <span class="material-symbols-outlined">delete</span>
+        <a media-type="${ty}" id="${img_id}" onclick="selectFile(id)" href="javascript:void(0)" class="select-icon-media">
+        <span class="material-symbols-outlined">check_box_outline_blank</span>
         </a>
         </div>`
 
-        selector.innerHTML += 
-        `<div id="${img_id}-sel-div" class="img-holder">
+        selector.innerHTML +=
+            `<div id="${img_id}-sel-div" class="holder${isvideoholder}">
         ${innerMedia}
-        <a id="${img_id}-sel" onclick="selectFile(id)" href="javascript:void(0)" class="select-icon-media">
+        <a media-type="${ty}" id="${img_id}-sel" onclick="selectFile(id)" href="javascript:void(0)" class="select-icon-media">
         <span class="material-symbols-outlined">check_box_outline_blank</span>
         </a>
         </div>`
@@ -637,56 +639,73 @@ async function uploadFile(event) {
     try {
         file.readAsBinaryString(event.srcElement[0].files[0])
     }
-    catch{return}    
+    catch { return }
 
-    file.onload = async function() {
+    file.onload = async function () {
         var user = JSON.parse(getUser())
         var url = new URL(location.origin + "/uploadfile")
         url.searchParams.set('id', user['id'])
         url.searchParams.set('password', user['password'])
         const formData = new FormData()
         formData.append('file', event.srcElement[0].files[0])
-        var res = await fetch(url, { method: "POST", body: formData})
+        var res = await fetch(url, { method: "POST", body: formData })
         res = await res.json()
-        if (res['status'] == 400) {return}
+        if (res['status'] == 400) { return }
         data = res['data']
 
         var gallery = document.getElementById('gallery-items')
         var selector = document.getElementById('media-sel-div')
-        gallery.innerHTML = 
-        `<div id="${data}-div" class="img-holder">
-        <img src="/img/${user['id']}/${data}">
-        <a id="${data}" onclick="deleteMedia(id)" href="javascript:void(0)" class="trashcan-icon-gallery">
-        <span class="material-symbols-outlined">delete</span>
-        </a>
-        </div>`
-        + gallery.innerHTML
 
-        selector.innerHTML += 
-        `<div id="${data}-sel-div" class="img-holder">
-        <img src="/img/${user['id']}/${data}">
-        <a id="${data}-sel" onclick="selectFile(id)" href="javascript:void(0)" class="select-icon-media">
+        ty = event.srcElement[0].files[0].type.split('/')[0]
+        var isvideoholder = ''
+        if (ty == 'image') {
+            var innerMedia = `<img onclick="fullscreenMedia('${user['id']}', ${data}, 'i')" src="/img/${user['id']}/${data}">`
+        }
+        else if (ty == 'video') {
+            var innerMedia = `<img src="/img/${user['id']}/${data}?isindexi=1"><span onclick="fullscreenMedia('${user['id']}', ${data}, 'v')" class="material-symbols-outlined play-btn">play_arrow</span>`
+            isvideoholder = ' video-holder'
+        }
+
+        ty = ty[0]
+
+        gallery.innerHTML =
+            `<div id="${data}-div" class="holder${isvideoholder}">
+        ${innerMedia}
+        <a media-type="${ty}" id="${data}" onclick="selectFile(id)" href="javascript:void(0)" class="select-icon-media">
         <span class="material-symbols-outlined">check_box_outline_blank</span>
         </a>
         </div>`
-        + selector.innerHTML
+            + gallery.innerHTML
+
+        selector.innerHTML =
+            `<div id="${data}-sel-div" class="holder${isvideoholder}">
+        ${innerMedia}
+        <a media-type="${ty}" id="${data}-sel" onclick="selectFile(id)" href="javascript:void(0)" class="select-icon-media">
+        <span class="material-symbols-outlined">check_box_outline_blank</span>
+        </a>
+        </div>`
+            + selector.innerHTML
     }
 }
 
-async function deleteMedia(id) {
-    var user = JSON.parse(getUser())
-    var url = new URL(location.origin + '/api/delete_media')
-    url.searchParams.set('id', user['id'])
-    url.searchParams.set('password', user['password'])
-    url.searchParams.set('imgId', id)
-    var res = await fetch(url, {method: 'DELETE'})
-    res = await res.json()
-    if (res['status'] == 400) {return}
-    document.getElementById(id + '-div').remove()
-    document.getElementById(id + '-sel-div').remove()
+async function deleteMedia() {
+    for (const img of document.querySelectorAll('.select-icon-media.active')) {
+        var user = JSON.parse(getUser())
+        var url = new URL(location.origin + '/api/delete_media')
+        url.searchParams.set('id', user['id'])
+        url.searchParams.set('password', user['password'])
+        url.searchParams.set('imgId', img.id)
+        var res = await fetch(url, { method: 'DELETE' })
+        res = await res.json()
+        if (res['status'] == 400) { return }
+        document.getElementById(img.id + '-div').remove()
+        document.getElementById(img.id + '-sel-div').remove()
+    }
+    closeSelector()
 }
 
 function loadFileSelector(id) {
+    closeSelector()
     document.getElementById('overlay').classList.add('active')
     document.getElementById('media-selector-popup').classList.add('active')
     document.getElementById('media-selector-popup').classList.add(id.split('-')[0] + '-media')
@@ -694,9 +713,9 @@ function loadFileSelector(id) {
 
 function selectFile(id) {
     var check = document.getElementById(id)
-    
 
-    if(check.classList.contains('active')){
+
+    if (check.classList.contains('active')) {
         check.children.item(0).innerHTML = 'check_box_outline_blank'
         check.classList.remove('active')
     }
@@ -708,36 +727,44 @@ function selectFile(id) {
 
 function closeSelector() {
     document.getElementById('overlay').classList.remove('active')
+    try {
+        document.getElementById('media-shower').pause()
+    }
+    catch { }
+    try {
+        document.getElementById('media-shower').remove()
+    }
+    catch { }
     document.getElementById('media-selector-popup').classList.remove('active')
     document.getElementById('media-selector-popup').classList.remove('select-icon-media')
-    for(const img of document.querySelectorAll('.select-icon-media.active')) {
+    for (const img of document.querySelectorAll('.select-icon-media.active')) {
         selectFile(img.id)
     }
 }
 
 async function sendSelectedMedia() {
-    for(const cl of document.getElementById('media-selector-popup').classList) {
-        if(cl.endsWith('media')) {
+    for (const cl of document.getElementById('media-selector-popup').classList) {
+        if (cl.endsWith('media')) {
             var id = cl.split('-')[0]
         }
     }
-    
-    for(const img of document.querySelectorAll('.select-icon-media.active')) {
-        if(!(ws.readyState === ws.OPEN)){
+
+    for (const img of document.querySelectorAll('.select-icon-media.active')) {
+        if (!(ws.readyState === ws.OPEN)) {
             setupWS()
         }
         var user = JSON.parse(getUser())
         var data = {
             'i': id, //chatID
-            'a': user['id'], //author
-            'c': 'i', //content: image
+            'c': img.getAttribute('media-type'), //content: image
             'd': img.id.split('-')[0] //imageId
         }
-        try{
+        try {
             ws.send(JSON.stringify(data))
-            
+
         }
-        catch{
+        catch {
+            console.log('Media')
             location = '/'
         }
     }
@@ -745,14 +772,28 @@ async function sendSelectedMedia() {
     window.scrollTo(0, document.body.scrollHeight)
 }
 
+function fullscreenMedia(author, id, type, timeId=0) {
+    document.getElementById('overlay').classList.add('active')
+    var body = document.getElementById('body')
+    if (type == 'v') {
+        body.innerHTML += `<video id="media-shower" controls name="media"><source src="/video/${author}/${id}?isindexi=1"></video>`
+        showTime(timeId)
+    }
+    else if (type == 'i') {
+        body.innerHTML += `<img id="media-shower" src="/img/${author}/${id}"/>`
+    }
+
+}
+
 async function loadChats() {
     await visualizeFriends()
-    for(const chatId of Object.values(JSON.parse(getUser())['contacts'])) {
+    for (const chatId of Object.values(JSON.parse(getUser())['contacts'])) {
         await loadChat(chatId)
     }
 }
 
-if(getUser() == undefined){
+if (getUser() == undefined) {
+    console.log('getuser')
     location = '/'
 }
 
@@ -771,5 +812,3 @@ document.getElementById('self-name').innerText = JSON.parse(getUser())['userN']
 loadChats()
 
 loadGalleryItems()
-
-//loadFileSelector()
