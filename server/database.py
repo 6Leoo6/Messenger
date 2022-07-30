@@ -464,6 +464,8 @@ class DB():
                         p / userId / 'images') if file.startswith(imgId)][0]
                 except IndexError:
                     return
+                except FileNotFoundError:
+                    return
                 media_type = 'image/' + filename.split('.')[-1]
                 return open(p / userId / 'images' / filename, 'rb').read(), media_type
             try:
