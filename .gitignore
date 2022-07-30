@@ -1,4 +1,5 @@
-*.mp4
+/server/media_storage
+!/server/media_storage/default
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
