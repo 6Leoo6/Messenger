@@ -5,7 +5,6 @@ import random
 import re
 import string
 import time
-from typing import Type
 
 import cv2
 from psycopg2 import errors, pool
@@ -138,7 +137,7 @@ class DB():
             return data
         data.pop(5)
         return 'password'
-    
+
     def getUserData(self, ip, sessionId):
         res = self.verifySession(ip, sessionId)
         if not res:
@@ -148,17 +147,19 @@ class DB():
         cur.execute('SELECT * FROM users WHERE id=(%s)', [userId])
         data = list(cur.fetchone())
         data.pop(5)
-        return data 
+        return data
 
     def createSession(self, ip, userId):
         conn, cur = self.connect_user()
         sessionId = self.generate_id(50, 50)
         try:
-            cur.execute('SELECT sessionid FROM login WHERE ip=(%s) AND userid=(%s)', [ip, userId])
+            cur.execute(
+                'SELECT sessionid FROM login WHERE ip=(%s) AND userid=(%s)', [ip, userId])
             return cur.fetchone()[0]
         except TypeError:
             pass
-        cur.execute('INSERT INTO login VALUES (%s,%s,%s,%s)', [ip, sessionId, userId, 0])
+        cur.execute('INSERT INTO login VALUES (%s,%s,%s,%s)',
+                    [ip, sessionId, userId, 0])
         conn.commit()
         self.users_pool.putconn(conn)
         return sessionId
@@ -166,18 +167,20 @@ class DB():
     def verifySession(self, ip, sessionId):
         conn, cur = self.connect_user()
         try:
-            cur.execute('SELECT * FROM login WHERE ip=(%s) AND sessionid=(%s)', [ip, sessionId])
+            cur.execute(
+                'SELECT * FROM login WHERE ip=(%s) AND sessionid=(%s)', [ip, sessionId])
             userId = cur.fetchall()[0][2]
         except IndexError:
             self.users_pool.putconn(conn)
             return False
         self.users_pool.putconn(conn)
         return userId
-    
+
     def getIdBySession(self, sessionId):
         conn, cur = self.connect_user()
         try:
-            cur.execute('SELECT userid FROM login WHERE sessionid=(%s)', [sessionId])
+            cur.execute(
+                'SELECT userid FROM login WHERE sessionid=(%s)', [sessionId])
             userId = cur.fetchone()[0]
         except TypeError:
             self.users_pool.putconn(conn)
@@ -197,17 +200,16 @@ class DB():
 
         return data[0]
 
-    def sendFriendReq(self, idTo, idFrom, passwordFrom):
+    def sendFriendReq(self, idTo, sid, ip):
         conn, cur = self.connect_user()
+
+        idFrom = self.verifySession(ip, sid)
+        if not idFrom:
+            self.users_pool.putconn(conn)
+            return 'auth'
 
         cur.execute('SELECT * FROM users WHERE id=(%s)', [idFrom])
         sender = cur.fetchone()
-        if not sender:
-            self.users_pool.putconn(conn)
-            return 'sender'
-        if sender[5] != passwordFrom:
-            self.users_pool.putconn(conn)
-            return 'password'
 
         cur.execute('SELECT * FROM users WHERE id=(%s)', [idTo])
         receiver = cur.fetchone()
@@ -245,7 +247,7 @@ class DB():
             return 400
         return name[0]
 
-    def handleFriendReq(self, id, password, idTo, action):
+    def handleFriendReq(self, sid, ip, idTo, action):
         conn, cur = self.connect_user()
 
         try:
@@ -256,17 +258,18 @@ class DB():
             self.users_pool.putconn(conn)
             return 'idto'
 
+        id = self.verifySession(ip, sid)
+        if not id:
+            self.users_pool.putconn(conn)
+            return 'auth'
+
         try:
             cur.execute(
-                'SELECT password, contacts, friend_req FROM users WHERE id=(%s)', [id])
-            senderPass, senderC, senderReqs = cur.fetchone()
+                'SELECT contacts, friend_req FROM users WHERE id=(%s)', [id])
+            senderC, senderReqs = cur.fetchone()
         except TypeError:
             self.users_pool.putconn(conn)
             return 'id'
-
-        if senderPass != password:
-            self.users_pool.putconn(conn)
-            return 'password'
 
         try:
             if senderReqs[idTo] == 'outgoing' and action == 'accept':
@@ -351,7 +354,7 @@ class DB():
         conn.commit()
         self.chats_pool.putconn(conn)
 
-    def getMsgs(self, id, password, chatId, logIndex):
+    def getMsgs(self, sid, ip, chatId, logIndex):
         conn, cur = self.connect_chat()
         if logIndex == 0:
             self.chats_pool.putconn(conn)
@@ -363,10 +366,10 @@ class DB():
             self.chats_pool.putconn(conn)
             return 'noMsgs'
 
-        valid = self.auth(id, password)
-        if not valid:
+        id = self.verifySession(ip, sid)
+        if not id:
             self.chats_pool.putconn(conn)
-            return 'password'
+            return 'auth'
 
         cur.execute(f'SELECT data FROM {chatId} WHERE number=0')
         if id not in cur.fetchone()[0]['members']:
@@ -396,9 +399,11 @@ class DB():
         self.chats_pool.putconn(conn)
         return log
 
-    def uploadMedia(self, media_type, img_bytes: bytes, id, password):
+    def uploadMedia(self, media_type, img_bytes: bytes, sid, ip):
         p = pathlib.Path(__file__).parent.resolve() / 'media_storage'
-        if not self.auth(id, password):
+
+        id = self.verifySession(ip, sid)
+        if not id:
             return 'auth'
         img_id = str(id) + str(time.time()).replace('.', '')
 
@@ -457,13 +462,15 @@ class DB():
                 try:
                     filename = [file for file in os.listdir(
                         p / userId / 'images') if file.startswith(imgId)][0]
-                except IndexError: return
+                except IndexError:
+                    return
                 media_type = 'image/' + filename.split('.')[-1]
                 return open(p / userId / 'images' / filename, 'rb').read(), media_type
             try:
                 filename = [file for file in os.listdir(
                     p / userId / 'videos' / 'index_imgs') if file.startswith(imgId)][0]
-            except IndexError: return
+            except IndexError:
+                return
             media_type = 'image/' + filename.split('.')[-1]
             return open(p / userId / 'videos' / 'index_imgs' / filename, 'rb').read(), media_type
         else:
@@ -481,15 +488,15 @@ class DB():
         else:
             return 'badRoute'"""
 
-    def deleteMedia(self, userId, password, imgId):
+    def deleteMedia(self, sid, imgId, ip):
+        userId = self.verifySession(ip, sid)
+        if not userId:
+            return 'auth'
+
         conn, cur = self.connect_user()
-        cur.execute('SELECT images FROM users WHERE id=%s AND password=%s', [
-                    userId, password])
-        imgs = cur.fetchone()
-        if not imgs:
-            self.users_pool.putconn(conn)
-            return 'badAuth'
-        imgs = imgs[0]
+        cur.execute('SELECT images FROM users WHERE id=%s', [userId])
+        imgs = cur.fetchone()[0]
+
         try:
             imgs['images'].remove(imgId)
         except ValueError:
@@ -514,14 +521,17 @@ class DB():
                 p / userId / 'images') if file.startswith(imgId)][0]
             os.remove(p / userId / 'images' / filename)
 
-    def listMedia(self, id, password):
+    def listMedia(self, sid, ip):
+        id = self.verifySession(sid, ip)
+        if not id:
+            return 'auth'
+
         conn, cur = self.connect_user()
         cur.execute(
-            'SELECT images FROM users WHERE id=%s AND password=%s', [id, password])
+            'SELECT images FROM users WHERE id=%s', [id])
         fetch = cur.fetchone()
         self.users_pool.putconn(conn)
-        if not fetch:
-            return 'badLogin'
+
         try:
             return [[img, self.getMediaType(img, id)] for img in fetch[0]['images']]
         except TypeError:
@@ -541,4 +551,5 @@ db = DB()
 
 
 if __name__ == '__main__':
-    print(db.getIdBySession('11dC5J7tA9r189t08680MYh78lP41d00TO6BD16tJEg213FR2h51wa5B142e2P4rv36wH6m4DeU3L2xjxF3wn027999233ASSLde'))
+    print(db.getIdBySession(
+        '11dC5J7tA9r189t08680MYh78lP41d00TO6BD16tJEg213FR2h51wa5B142e2P4rv36wH6m4DeU3L2xjxF3wn027999233ASSLde'))

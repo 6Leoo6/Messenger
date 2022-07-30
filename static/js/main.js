@@ -45,13 +45,10 @@ async function showAddFriend(id) {
 }
 
 async function handleReq(id) {
-    var user = JSON.parse(getUser())
-
     var [idTo, action] = id.split('-')
 
     var url = new URL(location.origin + "/api/handle_friend_req")
-    url.searchParams.set("id", user['id'])
-    url.searchParams.set("password", user['password'])
+    url.searchParams.set("sid", window.localStorage.getItem('sid'))
     url.searchParams.set("idTo", idTo)
     url.searchParams.set("action", action)
     var res = await fetch(url, { method: "POST" })
@@ -168,10 +165,8 @@ async function addFriend() {
     var url = new URL(location.origin + "/api/send_friend_req")
     idTo = window.sessionStorage.getItem("idToSendReq")
     window.sessionStorage.removeItem("idToSendReq")
-    var user = JSON.parse(getUser())
     url.searchParams.set("idTo", idTo)
-    url.searchParams.set("idFrom", user["id"])
-    url.searchParams.set("passwordFrom", user["password"])
+    url.searchParams.set("sid", window.localStorage.getItem('sid'))
     var res = await fetch(url, { method: "POST" })
     res = await res.json()
     var btn = document.getElementById("add-friend-btn")
@@ -264,10 +259,8 @@ async function loadChat(chatId) {
     var howManyLoaded = JSON.parse(window.sessionStorage.getItem('howManyLoaded'))
     if (howManyLoaded[chatId]) { return }
     window.sessionStorage.setItem('currentlyLoading', true)
-    var user = JSON.parse(getUser())
     var url = new URL(location.origin + "/api/get_messages")
-    url.searchParams.set("id", user['id'])
-    url.searchParams.set("password", user['password'])
+    url.searchParams.set("sid", window.localStorage.getItem('sid'))
     url.searchParams.set("chatId", chatId)
     url.searchParams.set("logIndex", -1)
     var res = await fetch(url, { method: "POST" })
@@ -500,10 +493,8 @@ document.addEventListener('scroll', async function (event) {
                 }
                 window.sessionStorage.setItem('currentlyLoading', true)
 
-                var user = JSON.parse(getUser())
                 var url = new URL(location.origin + "/api/get_messages")
-                url.searchParams.set("id", user['id'])
-                url.searchParams.set("password", user['password'])
+                url.searchParams.set("sid", window.localStorage.getItem('sid'))
                 url.searchParams.set("chatId", chatId)
                 url.searchParams.set("logIndex", nextToLoad)
                 var res = await fetch(url, { method: "POST" })
@@ -591,8 +582,7 @@ async function loadGalleryItems() {
     var user = JSON.parse(getUser())
 
     var url = new URL(location.origin + '/api/list_media')
-    url.searchParams.set('id', user['id'])
-    url.searchParams.set('password', user['password'])
+    url.searchParams.set('sid', window.localStorage.getItem('sid'))
     var res = await fetch(url, { method: 'GET' })
     res = await res.json()
     if (res['status'] == 400) { return }
@@ -644,8 +634,7 @@ async function uploadFile(event) {
     file.onload = async function () {
         var user = JSON.parse(getUser())
         var url = new URL(location.origin + "/uploadfile")
-        url.searchParams.set('id', user['id'])
-        url.searchParams.set('password', user['password'])
+        url.searchParams.set('sid', window.localStorage.getItem('sid'))
         const formData = new FormData()
         formData.append('file', event.srcElement[0].files[0])
         var res = await fetch(url, { method: "POST", body: formData })
@@ -690,10 +679,8 @@ async function uploadFile(event) {
 
 async function deleteMedia() {
     for (const img of document.querySelectorAll('.select-icon-media.active')) {
-        var user = JSON.parse(getUser())
         var url = new URL(location.origin + '/api/delete_media')
-        url.searchParams.set('id', user['id'])
-        url.searchParams.set('password', user['password'])
+        url.searchParams.set('sid', window.localStorage.getItem('sid'))
         url.searchParams.set('imgId', img.id)
         var res = await fetch(url, { method: 'DELETE' })
         res = await res.json()

@@ -5,14 +5,13 @@ from typing import List
 
 from fastapi import (FastAPI, File, Request, Response, UploadFile, WebSocket,
                      WebSocketDisconnect)
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from requests import request
 
 from server.database import db
-from server.video import range_requests_response
 from server.encryption import generateKeys
+from server.video import range_requests_response
 
 app = FastAPI()
 
@@ -128,26 +127,26 @@ def get_video(userId, imgId, request: Request):
 
 
 @app.post("/uploadfile")
-async def upload_file(id, password, file: UploadFile = File(...)):
+async def upload_file(sid, request: Request, file: UploadFile = File(...)):
     t = time.time()
     file_byte = await file.read()
-    res = db.uploadMedia(file.content_type, file_byte, id, password)
+    res = db.uploadMedia(file.content_type, file_byte, sid, request.client.host)
     if res in ['auth', 'duplicate']:
         return {'status': 400, 'error': res}
     return {'status': 200, 'data': res}
 
 
 @app.get('/api/list_media')
-def list_media(id, password):
-    res = db.listMedia(id, password)
-    if res in ['badLogin']:
+def list_media(sid, request: Request):
+    res = db.listMedia(sid, request.client.host)
+    if res in ['auth']:
         return {'status': 400, 'error': res}
     return {'status': 200, 'data': res}
 
 
 @app.delete('/api/delete_media')
-def delete_media(id, password, imgId):
-    res = db.deleteMedia(id, password, imgId)
+def delete_media(sid, imgId, request: Request):
+    res = db.deleteMedia(sid, imgId, request.client.host)
     if res is not None:
         return {'status': 400, 'error': res}
     return {'status': 200}
@@ -191,9 +190,9 @@ def search_friend(userN: str):
 
 
 @app.post('/api/send_friend_req')
-def send_friend_req(idTo: str, idFrom: str, passwordFrom: str):
-    res = db.sendFriendReq(idTo, idFrom, passwordFrom)
-    return {'status': 200, 'data': res} if res not in ['sender', 'password', 'receiver'] else {'status': 400, 'error': res}
+def send_friend_req(idTo: str, sid: str, request: Request):
+    res = db.sendFriendReq(idTo, sid, request.client.host)
+    return {'status': 200, 'data': res} if res not in ['auth', 'receiver'] else {'status': 400, 'error': res}
 
 
 @app.post('/api/get_usern_by_id')
@@ -203,17 +202,17 @@ def get_usern_by_id(id: str):
 
 
 @app.post('/api/handle_friend_req')
-def handle_friend_req(id: str, password: str, idTo: str, action: str):
+def handle_friend_req(sid: str, idTo: str, action: str, request: Request):
     if action not in ['accept', 'cancel', 'decline']:
         return {'status': 400, 'error': 'action'}
-    res = db.handleFriendReq(id, password, idTo, action)
+    res = db.handleFriendReq(sid, request.client.host, idTo, action)
     return {'status': 400, 'error': res} if res != 200 else {'status': res}
 
 
 @app.post('/api/get_messages')
-def get_messages(id: str, password: str, chatId: str, logIndex: int):
-    res = db.getMsgs(id, password, chatId, logIndex)
-    return {'status': 400, 'error': res} if res in ['logIndex', 'noMsgs', 'id', 'password', 'notM', 'chatId'] else {'status': 200, 'data': res}
+def get_messages(sid: str, chatId: str, logIndex: int, request: Request):
+    res = db.getMsgs(sid, request.client.host, chatId, logIndex)
+    return {'status': 400, 'error': res} if res in ['logIndex', 'noMsgs', 'id', 'auth', 'notM', 'chatId'] else {'status': 200, 'data': res}
 
 
 # To run the app: python -m uvicorn server:app --host 0.0.0.0 --reload
