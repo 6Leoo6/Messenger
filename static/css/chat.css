@@ -91,7 +91,8 @@
     z-index: 100;
     position: fixed;
     display: flex;
-    justify-content: start;
+    justify-content: space-between;
+    align-items: center;
     width: 100%;
     background-color: #171717;
     padding-left: 10px;
@@ -141,4 +142,90 @@
     transform: translate(-50%, -50%);
     font-size: 100px;
     z-index: 20;
+}
+
+.name-div-setting {
+    position: fixed;
+    right: 5px;
+    cursor: pointer;
+}
+
+#overlay-set {
+    z-index: 10004;
+}
+
+.setting-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    z-index: 10005;
+    background-color: white;
+    width: 550px;
+    height: 600px;
+}
+
+.setting-popup.active {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.group-setting-btn {
+    border: none;
+    font-size: 25px;
+    width: calc(550px / 3);
+    border-radius: 0px;
+}
+
+.setting-navbar {
+    display: flex;
+    justify-content: space-around;
+    background-color: white;
+    position: fixed;
+    width: 100%;
+    z-index: 100;
+}
+
+.setting-popup h2 {
+    color: #171717;
+    margin-left: 5px;
+}
+
+.setting-user-div {
+    height: 70px;
+}
+
+.settings-page {
+    position: fixed;
+    height: 100%;
+    width: 100%;
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+
+#settings-page {
+    color: #171717;
+    overflow: hidden;
+}
+
+#top-group-setting {
+    margin-top: 60px;
+}
+
+.group-setting-div {
+    margin: 10px 10px;
+}
+
+.group-settings-menu {
+    right: 20px;
+    color: #171717;
+    cursor: pointer;
+}
+
+.more-options-bar {
+    display: flex;
+    justify-content: space-around;
+}
+
+#members-div {
+    margin-bottom: 20px;
 }

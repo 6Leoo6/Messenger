@@ -109,6 +109,7 @@ a {
     display: flex;
     padding-left: 5px;
     align-items: center;
+    justify-content: space-between;
     background-color: #444444;
     margin-bottom: 5px;
     color: white
@@ -133,6 +134,10 @@ a {
 }
 
 #username-p {
+    color: #171717;
+}
+
+.username-group-p {
     color: #171717;
 }
 
@@ -214,8 +219,7 @@ a {
     display: inline;
 }
 
-#overlay {
-    z-index: 10000;
+.overlay {
     position: fixed;
     opacity: 0;
     transition: 200ms ease-in-out;
@@ -227,9 +231,17 @@ a {
     pointer-events: none;
 }
 
-#overlay.active {
+.overlay.active {
     opacity: 1;
     pointer-events: all;
+}
+
+#overlay-sel {
+    z-index: 10000;
+}
+
+#overlay-show {
+    z-index: 10002;
 }
 
 #media-selector-popup {
@@ -324,8 +336,102 @@ a {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 10001;
-    z-index: 10002;
+    z-index: 10003;
     max-width: 95%;
     max-height: 95%;
+}
+
+#group-form-inside {
+    color: #444444;
+    margin: auto;
+    width: 75%;
+    min-width: 300px;
+}
+
+#user-list-div {
+    height: 500px;
+    width: 560px;
+    overflow: scroll;
+    overflow-x: hidden;
+}
+
+.friend-container {
+    margin-top: 0px;
+    margin-bottom: 10px;
+}
+
+#create-group-btn {
+    font-size: 17px;
+}
+
+.group-select {
+    color: #007bff;
+    cursor: pointer;
+}
+
+#group-create-settings {
+    width: 450px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+#group-create-side {
+    display: flex;
+    margin: 20px 0px;
+    align-items: stretch;
+    justify-content: space-around;
+}
+
+.group-create-setting {
+    margin-bottom: 20px;
+}
+
+.center-title {
+    color: #444444;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.center-div {
+    position: fixed;
+    width: calc(100% - var(--side-div-width));
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.center-btn {
+    margin-bottom: 100px;
+}
+
+.btn-side-by-side {
+    display: flex;
+    flex-direction: row;
+
+}
+
+.btn-side-by-side button {
+    margin: 10px;
+}
+
+.group-invite-warn {
+    color: #ffc107;
+    margin-right: 3px;
+}
+
+.group-request-warn {
+    color: #ffc107;
+    margin-right: 3px;
+}
+
+#save-settings {
+    display: flex;
+    justify-content: center;
+    position: fixed;
+    bottom: 5px;
+    width: 100%;
 }

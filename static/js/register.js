@@ -70,7 +70,7 @@ async function register() {
             'friend_req': {},
         }
         window.localStorage.setItem('user', JSON.stringify(userData))
-        window.localStorage.setItem('session', data['sid'])
+        window.localStorage.setItem('sid', data['sid'])
         document.getElementById('lastN').value = ''
         document.getElementById('firstN').value = ''
         document.getElementById('userN').value = ''

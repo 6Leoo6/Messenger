@@ -6,10 +6,14 @@ function getUser() {
 function changeList(id) {
     if (id == "user-single") {
         document.getElementById("add-friend").hidden = false
+        document.getElementById("friends-div").hidden = false
         document.getElementById("add-group").hidden = true
+        document.getElementById("groups-div").hidden = true
     } else if (id == "user-group") {
         document.getElementById("add-friend").hidden = true
+        document.getElementById("friends-div").hidden = true
         document.getElementById("add-group").hidden = false
+        document.getElementById("groups-div").hidden = false
     }
 }
 
@@ -41,6 +45,48 @@ async function showAddFriend(id) {
     } else if (id == "a-gr") {
         hideChildren(true, mainDiv.children)
         document.getElementById("add-group-div").hidden = false
+        document.getElementById("add-group-div").innerHTML = `
+        <form id="create-group-form" action=""><h2>Csoport létrehozása</h2>
+          <div id="group-form-inside">
+            <label for="group-name-input" class="form-label">Csoport neve</label>
+            <input type="text" class="form-control" id="group-name-input" aria-describedby="basic-addon3">
+            <div id="group-create-side">
+              <div id="user-list-div"></div>
+              <div id="group-create-settings">
+                <div class="form-check group-create-setting">
+                  <input class="form-check-input" type="checkbox" value="" id="invite-link-disable">
+                  <label class="form-check-label" for="invite-link-disable">
+                    Meghívó link letiltása
+                  </label>
+                </div>
+                <div class="form-check group-create-setting">
+                  <input class="form-check-input" type="checkbox" value="" id="public-name" checked>
+                  <label class="form-check-label" for="public-name">
+                    Név mindenki számára látható
+                  </label>
+                </div>
+                <div class="group-create-setting">
+                  <label for="group-accept-setting">Ki engedélyezheti az új tagok belépését?</label>
+                  <select class="form-select" aria-label="Default select example" id="group-accept-setting">
+                    <option value="1" selected>Nem kell engedély</option>
+                    <option value="2">Bárki</option>
+                    <option value="3">Adminisztrátor</option>
+                    <option value="4">Tulajdonos</option>
+                  </select>
+                </div>
+                
+              </div>
+            </div>
+            <p id="clipboard-p" style="color: rgb(25,135,84);" hidden>Link vágólapra másolva</p>
+            <button class="btn btn-primary" id="create-group-btn" onclick="createGroup(event)">Létrehozás</button>
+          </div>
+        </form>
+        <input id="copy-input" type="text" value="" hidden>
+        <div class="center-div" id="copy-div">
+            <h1 class="center-title" id="success-group-header"></h1>
+            <button id="copy-link-btn" class="btn btn-primary center-btn" onclick="copyLink()" hidden>Link másolása</button>
+        </div>`
+        generateFriendInviteBoxes()
     }
 }
 
@@ -230,7 +276,7 @@ async function visualizeFriends() {
         friendsListContent += `<div class="friend-div" id="${user['contacts'][id]}-btn" onclick="showChat(id)"><p>${name}</p></div>`
         friendDivs += `
         <div class="chat" id="${user['contacts'][id]}-chat" hidden>
-        <div class="name-div"><h2 class="name-title">${name}</h2></div>
+        <div class="name-div"><h2 class="name-title">${name}</h2><span class="material-symbols-outlined name-div-setting" onclick="openSettings('${chatId}', 'chat')">settings</span></div>
         <table class="message-table" id="${user['contacts'][id]}-msgs"><tbody></tbody></table>
         <form class="message-form" id="${user['contacts'][id]}-send" action="" onsubmit="sendMessage(event, id)">
             <div class="msg-form-div">
@@ -248,7 +294,72 @@ async function visualizeFriends() {
 
     }
     document.getElementById('friends-div').innerHTML = friendsListContent
-    document.getElementById('main-div').innerHTML += friendDivs
+    document.getElementById('direct-msgs').innerHTML = friendDivs
+}
+
+async function visualizeGroups() {
+    var groupsListContent = ''
+    var groupDivs = ''
+    var user = JSON.parse(getUser())
+    for (const [groupId, level] of Object.entries(user['groups'])) {
+        var url = new URL(location.origin + "/api/get_group_name")
+        url.searchParams.set("groupId", groupId)
+        url.searchParams.set("sid", window.localStorage.getItem('sid'))
+        var res = await fetch(url, { method: "GET" })
+        res = await res.json()
+        if (res['status'] == 400) { var name = 'Unknown' }
+        else { var name = res['data'] }
+
+        if (level == 'incoming') {
+            groupsListContent += `<div class="friend-div" id="${groupId}-btn" onclick="showChat(id)"><p>${name}</p><span class="group-invite-warn material-symbols-outlined">priority_high</span></div>`
+            groupDivs += `
+            <div class="chat" id="${groupId}-chat" hidden>
+                <div class="name-div"><h2 class="name-title">${name}</h2></div>
+                <div id="" class="center-div">
+                    <h1 id="" class="center-title">Meghívtak, hogy csatlakozz ebbe a csoportba</h1>
+                    <div class="btn-side-by-side">
+                        <button id="a-${groupId}" class="btn btn-success center-btn" onclick="handleGroupInvite(id)">Elfogadás</button>
+                        <button id="d-${groupId}" class="btn btn-danger center-btn" onclick="handleGroupInvite(id)">Elutasítás</button>
+                    </div>
+                </div>
+            </div>`
+        }
+        else if (level == 'waiting') {
+            groupsListContent += `<div class="friend-div" id="${groupId}-btn" onclick="showChat(id)"><p>${name}</p><span class="group-request-warn material-symbols-outlined">hourglass_top</span></div>`
+            groupDivs += `
+            <div class="chat" id="${groupId}-chat" hidden>
+                <div class="name-div"><h2 class="name-title">${name}</h2></div>
+                <div id="" class="center-div">
+                    <h1 id="" class="center-title">Jelentkezésed ebbe a csoportba elbírálás alatt áll</h1>
+                    <button id="${groupId}-cancel-waiting" class="btn btn-danger center-btn" onclick="handleJoinRequest(id, 'c')">Elvetés</button>
+                </div>
+            </div>`
+        }
+        else if (level != 'incoming' && level != 'waiting') {
+            groupsListContent += `<div class="friend-div" id="${groupId}-btn" onclick="showChat(id)"><p>${name}</p></div>`
+            groupDivs += `
+            <div class="chat" id="${groupId}-chat" hidden>
+                <div class="name-div"><h2 class="name-title">${name}</h2><span class="material-symbols-outlined name-div-setting" onclick="openSettings('${groupId}', 'group')">settings</span></div>
+                <table class="message-table" id="${groupId}-msgs"><tbody></tbody></table>
+                <form class="message-form" id="${groupId}-send" action="" onsubmit="sendMessage(event, id)">
+                    <div class="msg-form-div">
+                        <a id="${groupId}-opener" href="javascript:void(0)" onclick="loadFileSelector(id)" class="upload-link">
+                            <span class="material-symbols-outlined upload-icon">
+                                file_upload
+                            </span>
+                        </a>
+                        <input class="shadow-none" type="text" id="${groupId}-msgt" autocomplete="off" placeholder="Írja ide a szöveget"/>
+                        <button class="btn btn-dark">Küldés</button>
+                    </div>
+                </form>
+            </div>`
+        }
+
+
+
+    }
+    document.getElementById('groups-div').innerHTML = groupsListContent
+    document.getElementById('group-msgs').innerHTML = groupDivs
 }
 
 async function loadChat(chatId) {
@@ -289,8 +400,11 @@ async function loadChat(chatId) {
 function showChat(chatId) {
     chatId = chatId.split('-')[0]
     hideChildren(true, document.getElementById('main-div').children)
+    hideChildren(true, document.getElementById('direct-msgs').children)
+    hideChildren(true, document.getElementById('group-msgs').children)
     chatDiv = document.getElementById(chatId + '-chat')
     chatDiv.hidden = false
+    chatDiv.parentElement.parentElement.hidden = false
     window.scrollTo({
         top: document.body.scrollHeight,
         left: 0,
@@ -454,7 +568,6 @@ function sendMessage(event, id) {
         ws.send(JSON.stringify(data))
     }
     catch {
-        console.log('msg')
         location = '/'
     }
 
@@ -648,10 +761,10 @@ async function uploadFile(event) {
         ty = event.srcElement[0].files[0].type.split('/')[0]
         var isvideoholder = ''
         if (ty == 'image') {
-            var innerMedia = `<img onclick="fullscreenMedia('${user['id']}', ${data}, 'i')" src="/img/${user['id']}/${data}">`
+            var innerMedia = `<img onclick="fullscreenMedia('${user['id']}', '${data}', 'i')" src="/img/${user['id']}/${data}">`
         }
         else if (ty == 'video') {
-            var innerMedia = `<img src="/img/${user['id']}/${data}?isindexi=1"><span onclick="fullscreenMedia('${user['id']}', ${data}, 'v')" class="material-symbols-outlined play-btn">play_arrow</span>`
+            var innerMedia = `<img src="/img/${user['id']}/${data}?isindexi=1"><span onclick="fullscreenMedia('${user['id']}', '${data}', 'v')" class="material-symbols-outlined play-btn">play_arrow</span>`
             isvideoholder = ' video-holder'
         }
 
@@ -693,7 +806,8 @@ async function deleteMedia() {
 
 function loadFileSelector(id) {
     closeSelector()
-    document.getElementById('overlay').classList.add('active')
+    document.getElementById('body').style.overflowY = 'hidden'
+    document.getElementById('overlay-sel').classList.add('active')
     document.getElementById('media-selector-popup').classList.add('active')
     document.getElementById('media-selector-popup').classList.add(id.split('-')[0] + '-media')
 }
@@ -713,20 +827,23 @@ function selectFile(id) {
 }
 
 function closeSelector() {
-    document.getElementById('overlay').classList.remove('active')
-    try {
-        document.getElementById('media-shower').pause()
-    }
-    catch { }
-    try {
-        document.getElementById('media-shower').remove()
-    }
-    catch { }
+    document.getElementById('overlay-sel').classList.remove('active')
     document.getElementById('media-selector-popup').classList.remove('active')
     document.getElementById('media-selector-popup').classList.remove('select-icon-media')
     for (const img of document.querySelectorAll('.select-icon-media.active')) {
         selectFile(img.id)
     }
+    document.getElementById('body').style.overflowY = 'scroll'
+}
+
+function closeShower() {
+    try {
+        document.getElementById('media-shower').pause()
+    }
+    catch { }
+    document.getElementById('body').style.overflowY = 'scroll'
+    document.getElementById('media-shower').remove()
+    document.getElementById('overlay-show').classList.remove('active')
 }
 
 async function sendSelectedMedia() {
@@ -751,7 +868,6 @@ async function sendSelectedMedia() {
 
         }
         catch {
-            console.log('Media')
             location = '/'
         }
     }
@@ -759,8 +875,9 @@ async function sendSelectedMedia() {
     window.scrollTo(0, document.body.scrollHeight)
 }
 
-function fullscreenMedia(author, id, type, timeId=0) {
-    document.getElementById('overlay').classList.add('active')
+function fullscreenMedia(author, id, type, timeId = 0) {
+    document.getElementById('body').style.overflowY = 'hidden'
+    document.getElementById('overlay-show').classList.add('active')
     var body = document.getElementById('body')
     if (type == 'v') {
         body.innerHTML += `<video id="media-shower" controls name="media"><source src="/video/${author}/${id}?isindexi=1"></video>`
@@ -773,16 +890,426 @@ function fullscreenMedia(author, id, type, timeId=0) {
 }
 
 async function loadChats() {
+    await getUserData()
+    await visualizeGroups()
     await visualizeFriends()
     for (const chatId of Object.values(JSON.parse(getUser())['contacts'])) {
         await loadChat(chatId)
     }
+    for (const chatId of Object.keys(JSON.parse(getUser())['groups'])) {
+        await loadChat(chatId)
+    }
+}
+
+async function generateFriendInviteBoxes() {
+    list = ''
+    names = JSON.parse(window.localStorage.getItem('namesbyid'))
+    for (const id of Object.keys(JSON.parse(getUser())['contacts'])) {
+        if (names[id] == undefined) {
+            var url = new URL(location.origin + "/api/get_usern_by_id")
+            url.searchParams.set("id", id)
+            var res = await fetch(url, { method: "POST" })
+            res = await res.json()
+            if (res['status'] != 400) { names[id] = res['name'] }
+            window.localStorage.setItem("namesbyid", JSON.stringify(names))
+        }
+        list += `
+            <div class="friend-req-divs friend-container">
+            <p class="username-group-p">${names[id]}</p>
+            <p class="text-black-50 fs-6">Id: ${id}</p>
+            <span class="material-symbols-outlined group-select" id="${id}-group-select" onclick="selectUserForGroup(id)">check_box_outline_blank</span>
+            </div>`
+    }
+    document.getElementById('user-list-div').innerHTML += list
+
+}
+
+function selectUserForGroup(id) {
+    sel = document.getElementById(id)
+    if (sel.innerText != 'check_box') {
+        sel.innerText = 'check_box'
+    }
+    else {
+        sel.innerText = 'check_box_outline_blank'
+    }
+}
+
+async function createGroup(e) {
+    e.preventDefault()
+    var idlist = []
+    for (const obj of document.querySelectorAll('.group-select')) {
+        if (document.getElementById(obj.id).innerText == 'check_box') {
+            idlist.push(obj.id.split('-')[0])
+        }
+    }
+
+    var groupName = document.getElementById('group-name-input').value
+
+    if (document.getElementById('public-name').checked) {
+        var publicName = 1
+    }
+    else {
+        var publicName = 0
+    }
+
+    if (document.getElementById('invite-link-disable').checked) {
+        var disableLink = 1
+    }
+    else {
+        var disableLink = 0
+    }
+
+    var groupAccept = ['no', 'anyone', 'admin', 'owner'][document.getElementById('group-accept-setting').value - 1]
+
+    var settings = { 'approveJoin': groupAccept, 'disableLink': disableLink, 'publicName': publicName }
+
+    if (idlist.length != 0 && groupName.length > 3 && groupName.length < 20) {
+        var url = new URL(location.origin + "/api/create_group")
+        url.searchParams.set("sid", window.localStorage.getItem('sid'))
+        url.searchParams.set("members", JSON.stringify(idlist))
+        url.searchParams.set("name", groupName)
+        url.searchParams.set("settings", JSON.stringify(settings))
+        var res = await fetch(url, { method: "POST" })
+        res = await res.json()
+        if (res['status'] == 201) {
+            for (const obj of document.querySelectorAll('.group-select')) {
+                document.getElementById(obj.id).innerText = 'check_box_outline_blank'
+            }
+            document.getElementById('group-name-input').value = ''
+            document.getElementById('create-group-form').remove()
+            var h = document.getElementById('success-group-header')
+            h.innerText = `Sikeresen létrehoztál egy csoportot "${groupName}" néven`
+            await getUserData()
+            await visualizeGroups()
+            if (disableLink == 0) {
+                var btn = document.getElementById('copy-link-btn')
+                btn.innerText = 'Link másolása'
+                btn.hidden = false
+                ci = document.getElementById('copy-input')
+                ci.value = location.origin + '/join/' + res['data']
+            }
+
+        }
+    }
+}
+
+function copyLink() {
+    ci = document.getElementById('copy-input')
+    ci.hidden = false
+    ci.select()
+    if (document.execCommand("copy")) {
+        var btn = document.getElementById('copy-link-btn')
+        btn.innerText = 'Link kimásolva'
+    }
+    ci.hidden = true
+}
+
+async function handleGroupInvite(id) {
+    var url = new URL(location.origin + "/api/handle_group_invite")
+    url.searchParams.set("sid", window.localStorage.getItem('sid'))
+    url.searchParams.set("groupId", id.split('-')[1])
+    url.searchParams.set("action", id.split('-')[0])
+    var res = await fetch(url, { method: "POST" })
+    res = await res.json()
+    if (res['status'] == 200) {
+        await getUserData()
+        if (id.split('-')[0] == 'd') {
+            document.getElementById(id.split('-')[1] + '-chat').remove()
+        }
+        else {
+            await visualizeGroups()
+            for (const chatId of Object.keys(JSON.parse(getUser())['groups'])) {
+                await loadChat(chatId)
+            }
+            showChat(id.split('-')[1])
+
+        }
+    }
+}
+
+async function handleJoinRequest(id, action) {
+    var url = new URL(location.origin + "/api/handle_join_request")
+    url.searchParams.set("sid", window.localStorage.getItem('sid'))
+    url.searchParams.set("groupId", id.split('-')[0])
+    url.searchParams.set("action", action)
+    var res = await fetch(url, { method: "POST" })
+    res = await res.json()
+    if (res['status'] == 200) {
+        console.log(action)
+        if(action.startsWith('d_') || action.startsWith('a_')) {
+            document.getElementById(id).parentElement.parentElement.remove()
+            return
+        }
+        await getUserData()
+        await visualizeGroups()
+        for (const chatId of Object.keys(JSON.parse(getUser())['groups'])) {
+            await loadChat(chatId)
+        }
+    }
+}
+
+function closeOverlay() {
+    overlay_sel = document.getElementById('overlay-sel')
+    overlay_show = document.getElementById('overlay-show')
+    overlay_set = document.getElementById('overlay-set')
+    if (overlay_set.classList.contains('active')) {
+        closeSettings()
+    } else if (overlay_show.classList.contains('active')) {
+        closeShower()
+    } else if (overlay_sel.classList.contains('active')) {
+        closeSelector()
+    }
+
+}
+
+async function openSettings(id, type) {
+    document.getElementById('body').style.overflowY = 'hidden'
+    document.getElementById('overlay-set').classList.add('active')
+    if (type == 'group') {
+        popup = document.getElementById('group-settings')
+        popup.classList.add('active')
+
+        var url = new URL(location.origin + "/api/get_group_data")
+        url.searchParams.set("sid", window.localStorage.getItem('sid'))
+        url.searchParams.set("groupId", id.split('-')[0])
+        var res = await fetch(url, { method: "GET" })
+        res = await res.json()
+        if (res['status'] == 200) {
+            data = res['data']
+            window.sessionStorage.setItem(id.split('-')[0], JSON.stringify(data))
+            var owner = ''
+            var admins = ''
+            var members = ''
+
+            var user = JSON.parse(getUser())
+
+            var isowner = false
+
+            if(user['id'] == data['owner']) {
+                isowner = true
+            }
+
+            for (const member of data['members']) {
+                var name = await getNameById(member)
+                var moreOptions = '</div>'
+                var adminbtn = ''
+                if(isowner && member != data['owner']) {
+                    if(!data['admins'].includes(member)) {
+                        adminbtn = `<button id="" class="btn btn-success decline-request">Adminisztrátorrá tétel</button>`
+                    }
+                    moreOptions = `<span id="${member}-more-btn" onclick="moreOptionsBar(id)" class="material-symbols-outlined group-settings-menu">menu</span>
+                    </div>
+                    <div id="${member}-more-bar" class="more-options-bar" hidden>
+                    ${adminbtn}
+                    <button id="" class="btn btn-warning accept-request">Kirúgás</button>
+                    <button id="" class="btn btn-danger decline-request">Kitiltás</button></div>`
+                }
+                members +=
+                    `<div class="friend-req-divs setting-user-div">
+                <p class="username-group-p">${name}</p>
+                <p class="text-black-50 fs-6">Id: ${member}</p>
+                ${moreOptions}`
+            }
+            var namesbyid = JSON.parse(window.localStorage.getItem('namesbyid'))
+            for (const admin of data['admins']) {
+                admins +=
+                    `<div class="friend-req-divs setting-user-div">
+                <p class="username-group-p">${namesbyid[admin]}</p>
+                <p class="text-black-50 fs-6">Id: ${admin}</p>
+                </div>`
+            }
+            owner =
+                `<div class="friend-req-divs setting-user-div">
+            <p class="username-group-p">${namesbyid[data['owner']]}</p>
+            <p class="text-black-50 fs-6">Id: ${data['owner']}</p>
+            </div>`
+
+            document.getElementById('owner-div').innerHTML = owner
+            document.getElementById('admins-div').innerHTML = admins
+            document.getElementById('members-div').innerHTML = members
+
+            var reqs = ''
+            var invites = ''
+            var blocked = ''
+            
+            var apj = data['settings']['approveJoin']
+
+            for (const req of data['waitingForApproval']) {
+                var name = await getNameById(req)
+                var options = ''
+                if ((apj == 'anyone' && data['members'].includes(user['id'])) || (apj == 'admin' && data['admins'].includes(user['id'])) || (apj == 'owner' && data['owner'] == user['id'])) {
+                    options = `<div><button id="${id.split('-')[0]}-accept-${req}" onclick="handleJoinRequest(id, 'a_${req}')" class="btn btn-success accept-request">Elfogadás</button>
+                    <button id="${id.split('-')[0]}-decline-${req}" onclick="handleJoinRequest(id, 'd_${req}')" class="btn btn-danger decline-request">Elutasítás</button></div>`
+                }
+                reqs +=
+                    `<div class="friend-req-divs setting-user-div">
+                <p class="username-group-p">${name}</p>
+                <p class="text-black-50 fs-6">Id: ${req}</p>
+                ${options}
+                </div>`
+            }
+
+            for (const inv of data['invited']) {
+                var name = await getNameById(inv)
+                var options = ''
+                if ((apj == 'anyone' && data['members'].includes(user['id'])) || (apj == 'admin' && data['admins'].includes(user['id'])) || (apj == 'owner' && data['owner'] == user['id'])) {
+                    options = `<button id="${id.split('-')[0]}-cancle-${inv}" onclick="handleJoinRequest('c_${inv}-${id.split('-')[0]}')" class="btn btn-danger decline-request">Elvetés</button>`
+                }
+                invites +=
+                    `<div class="friend-req-divs setting-user-div">
+                <p class="username-group-p">${name}</p>
+                <p class="text-black-50 fs-6">Id: ${inv}</p>
+                ${options}
+                </div>`
+            }
+
+            for (const blo of data['blocked']) {
+                var name = await getNameById(blo)
+                blocked +=
+                    `<div class="friend-req-divs setting-user-div">
+                <p class="username-group-p">${name}</p>
+                <p class="text-black-50 fs-6">Id: ${blo}</p>
+                </div>`
+            }
+
+            document.getElementById('invites-div').innerHTML = invites
+            document.getElementById('requests-div').innerHTML = reqs
+            document.getElementById('blocked-div').innerHTML = blocked
+            
+
+            
+            for(const child of document.getElementById('group-accept-setting-set').children) {
+                if(child.value == ['no', 'anyone', 'admin', 'owner'].indexOf(data['settings']['approveJoin']) + 1) {
+                    child.selected = true
+                }
+            }
+
+            document.getElementById('invite-link-disable-set').checked = Boolean(data['settings']['disableLink'])
+            document.getElementById('public-name-set').checked = Boolean(data['settings']['publicName'])
+            
+            document.getElementById('save-settings').innerHTML = ''
+
+            if(isowner) {
+                var settingsInput = document.querySelectorAll('.group-setting-mod')
+                settingsInput.forEach(function (t) {
+                    t.disabled = false
+                })
+                document.getElementById('save-settings').innerHTML = `<button onclick="saveSettings('${id.split('-')[0]}')" class="btn btn-primary">Mentés</button>`
+            } else {
+                document.getElementById('save-settings').innerHTML = ''
+                var settingsInput = document.querySelectorAll('.group-setting-mod')
+                settingsInput.forEach(function (t) {
+                    t.disabled = true
+                })
+            }
+            
+        }
+    }
+}
+
+function closeSettings() {
+    document.getElementById('body').style.overflowY = 'scroll'
+    document.getElementById('overlay-set').classList.remove('active')
+    popup = document.getElementById('group-settings')
+    popup.classList.remove('active')
+    popup = document.getElementById('chat-settings')
+    popup.classList.remove('active')
+}
+
+function openSettingsTab(tab) {
+    var tabs = document.querySelectorAll('.settings-page')
+    tabs.forEach(function (t) {
+        t.hidden = true
+    })
+    if (tab == 'm') {
+        document.getElementById('members-page').hidden = false
+    } else if (tab == 'j') {
+        document.getElementById('join-page').hidden = false
+    } else if (tab == 's') {
+        document.getElementById('settings-page').hidden = false
+    }
+}
+
+async function getNameById(id) {
+    var namesbyid = JSON.parse(window.localStorage.getItem('namesbyid'))
+    var name = namesbyid[id]
+    if (name == undefined) {
+        var url = new URL(location.origin + "/api/get_usern_by_id")
+        url.searchParams.set("id", id)
+        var res = await fetch(url, { method: "POST" })
+        res = await res.json()
+        if (res['status'] == 400) { return 'Error' }
+        namesbyid[id] = res['name']
+        window.localStorage.setItem('namesbyid', JSON.stringify(namesbyid))
+        return res['name']
+    }
+    return name
+}
+
+async function saveSettings(groupId) {
+    data = JSON.parse(window.sessionStorage.getItem(groupId))
+    if (document.getElementById('public-name-set').checked) {
+        var publicName = 1
+    }
+    else {
+        var publicName = 0
+    }
+
+    if (document.getElementById('invite-link-disable-set').checked) {
+        var disableLink = 1
+    }
+    else {
+        var disableLink = 0
+    }
+    var groupAccept = ['no', 'anyone', 'admin', 'owner'][document.getElementById('group-accept-setting-set').value - 1]
+
+    var currentSettings = {'publicName':publicName, 'disableLink': disableLink, 'approveJoin': groupAccept}
+    var change = false
+    for(const [key, value] of Object.entries(currentSettings)) {
+        if(value != data['settings'][key]) {
+            change = true
+        }
+    }
+    
+    if(!change) {
+        return
+    }
+
+    var url = new URL(location.origin + "/api/save_group_settings")
+    url.searchParams.set("groupId", groupId)
+    url.searchParams.set("settings", JSON.stringify(currentSettings))
+    url.searchParams.set("sid", window.localStorage.getItem('sid'))
+    var res = await fetch(url, { method: "POST" })
+    res = await res.json()
+    if (res['status'] == 200) {
+        data['settings'] = currentSettings
+        window.sessionStorage.setItem(groupId, JSON.stringify(data))
+    }
+
+    
+}
+
+function moreOptionsBar(id) {
+    var value = document.getElementById(id.replace('btn', 'bar')).hidden
+
+    var bars = document.querySelectorAll('.more-options-bar')
+    bars.forEach(function (t) {
+        t.hidden = true
+    })
+    
+    document.getElementById(id.replace('btn', 'bar')).hidden = !value
 }
 
 if (getUser() == undefined) {
-    console.log('getuser')
     location = '/'
 }
+
+document.onkeydown = function (evt) {
+    evt = evt || window.event;
+    if (evt.key == 'Escape') {
+        closeOverlay()
+    }
+};
 
 setupWS()
 

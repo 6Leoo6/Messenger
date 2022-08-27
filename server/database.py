@@ -48,13 +48,14 @@ class DB():
                        for _ in range(letter_count)))
         str1 += ''.join((random.choice(string.digits)
                         for _ in range(digit_count)))
-
-        sam_list = list(str1)
+        str1 = list(str1)
+        char = str1.pop(0)
+        sam_list = str1
 
         random.seed(seed2)
         random.shuffle(sam_list)
         random.seed(None)
-        final_string = ''.join(sam_list)
+        final_string = char + ''.join(sam_list)
         return final_string
 
     def checkEmail(self, email, c):
@@ -67,19 +68,6 @@ class DB():
         elif email in emails:
             return 'email1'
         return 'email2'
-
-    def auth(self, id, password):
-        conn, cur = self.connect_user()
-        try:
-            cur.execute('SELECT password FROM users WHERE id=%s', [id])
-            fetch = cur.fetchone()[0]
-            if fetch == password:
-                self.users_pool.putconn(conn)
-                return True
-        except IndexError:
-            pass
-        self.users_pool.putconn(conn)
-        return False
 
     def registerUser(self, firstN, lastN, username, email, password, unencpass, key):
         unencpass = decryptMsg(key, unencpass)
@@ -115,7 +103,7 @@ class DB():
             return 'password'
 
         cur.execute('INSERT INTO users VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)', [
-                    firstN, lastN, id, username, email, password, '{}', '{}', '{}', '{}', '{}'])
+                    firstN, lastN, id, username, email, password, '{}', '{}', '{}', '{}', json.dumps({"images": []})])
 
         conn.commit()
         self.users_pool.putconn(conn)
@@ -147,6 +135,7 @@ class DB():
         cur.execute('SELECT * FROM users WHERE id=(%s)', [userId])
         data = list(cur.fetchone())
         data.pop(5)
+        self.users_pool.putconn(conn)
         return data
 
     def createSession(self, ip, userId):
@@ -155,7 +144,9 @@ class DB():
         try:
             cur.execute(
                 'SELECT sessionid FROM login WHERE ip=(%s) AND userid=(%s)', [ip, userId])
-            return cur.fetchone()[0]
+            session_id = cur.fetchone()[0]
+            self.users_pool.putconn(conn)
+            return session_id
         except TypeError:
             pass
         cur.execute('INSERT INTO login VALUES (%s,%s,%s,%s)',
@@ -326,7 +317,7 @@ class DB():
             fetch = cur.fetchone()[0]
             self.chats_pool.putconn(conn)
             return fetch['members']
-        except IndexError:
+        except errors.UndefinedTable:
             self.chats_pool.putconn(conn)
             return False
 
@@ -524,7 +515,7 @@ class DB():
             os.remove(p / userId / 'images' / filename)
 
     def listMedia(self, sid, ip):
-        id = self.verifySession(sid, ip)
+        id = self.verifySession(ip, sid)
         if not id:
             return 'auth'
 
@@ -547,6 +538,293 @@ class DB():
             return 'image'
         else:
             return 'notExists'
+
+    def createGroup(self, sid, members, name, settings, ip):
+        settings = json.loads(settings)
+        members = json.loads(members)
+        ownerId = self.verifySession(ip, sid)
+        if not ownerId:
+            return 'auth'
+
+        if not name.isalnum() and 20 > len(name) <= 3:
+            return 'name'
+
+        conn, cur = self.connect_user()
+
+        groupId = self.generate_id(10, 10)
+
+        invited = []
+
+        for id in members:
+            cur.execute('SELECT groups FROM users WHERE id=(%s)', [id])
+            try:
+                groups = cur.fetchone()[0]
+            except TypeError:
+                self.users_pool.putconn(conn)
+                return 'member'
+
+            groups.update({groupId: 'incoming'})
+            cur.execute('UPDATE users SET groups=(%s) WHERE id=(%s)', [
+                        json.dumps(groups), id])
+            invited.append(id)
+
+        cur.execute('SELECT groups FROM users WHERE id=(%s)', [ownerId])
+        groups = cur.fetchone()[0]
+        groups.update({groupId: 'owner'})
+        cur.execute('UPDATE users SET groups=(%s) WHERE id=(%s)',
+                    [json.dumps(groups), ownerId])
+
+        conn.commit()
+        self.users_pool.putconn(conn)
+        #"{'approveJoin': 'no', 'disableLink': 0, 'publicName': 1}"
+
+        if settings['approveJoin'] not in ['no', 'anyone', 'admin', 'owner'] or settings['disableLink'] not in [0, 1] or settings['publicName'] not in [0, 1] or set(settings.keys()) != {'disableLink', 'publicName', 'approveJoin'}:
+            return 'settings'
+
+        conn_chats, cur_chats = self.connect_chat()
+        cur_chats.execute(
+            f'CREATE TABLE IF NOT EXISTS {groupId} (number int, data json)')
+        cur_chats.execute(f'INSERT INTO {groupId} VALUES (%s, %s)', [0, json.dumps({'name': name, 'owner': ownerId, 'admins': [ownerId], 'members': [ownerId], 'invited': invited, 'blocked': [], 'waitingForApproval': [], 'settings': settings, 'type': 'group'})])
+
+        conn_chats.commit()
+        self.chats_pool.putconn(conn_chats)
+
+        return groupId
+    
+    def joinGroupByLink(self, groupId, sid, ip):
+        id = self.verifySession(ip, sid)
+        if not id:
+            return 'auth'
+        
+        conn_chats, cur_chats = self.connect_chat()
+
+        print(groupId)
+        try:
+            cur_chats.execute(f'SELECT data FROM {groupId} WHERE number=0')
+        except errors.UndefinedTable:
+            self.chats_pool.putconn(conn_chats)
+            return 'groupId'
+        data = cur_chats.fetchone()[0]
+        
+        if not data['settings']['disableLink'] and id not in data['waitingForApproval'] and id not in data['blocked'] and id not in data['members']:
+            if data['settings']['approveJoin'] == 'no' or id in data['invited']:
+                data['members'].append(id)
+                cur_chats.execute(f'UPDATE {groupId} SET data=%s WHERE number=0', [json.dumps(data)])
+                conn_chats.commit()
+                self.chats_pool.putconn(conn_chats)
+
+                conn, cur = self.connect_user()
+                cur.execute('SELECT groups FROM users WHERE id=%s', [id])
+                groups = cur.fetchone()[0]
+                groups.update({groupId: 'member'})
+                cur.execute('UPDATE users SET groups=%s WHERE id=%s', [json.dumps(groups), id])
+                conn.commit()
+                self.users_pool.putconn(conn)
+                return 'joined'
+            else:
+                data['waitingForApproval'].append(id)
+                cur_chats.execute(f'UPDATE {groupId} SET data=(%s) WHERE number=0', [json.dumps(data)])
+                
+
+                conn, cur = self.connect_user()
+                cur.execute('SELECT groups FROM users WHERE id=%s', [id])
+                groups = cur.fetchone()[0]
+                groups.update({groupId: 'waiting'})
+                cur.execute('UPDATE users SET groups=%s WHERE id=%s', [json.dumps(groups), id])
+                conn.commit()
+                self.users_pool.putconn(conn)
+                conn_chats.commit()
+                self.chats_pool.putconn(conn_chats)
+                return 'waiting'
+        self.chats_pool.putconn(conn_chats)
+        return [not data['settings']['disableLink'], id not in data['waitingForApproval'], id not in data['blocked'], id not in data['members']] 
+
+    def getGroupName(self, groupId, sid, ip):
+        conn_chats, cur_chats = self.connect_chat()
+        try:
+            cur_chats.execute(f'SELECT data FROM {groupId} WHERE number=0')
+        except errors.UndefinedTable:
+            self.chats_pool.putconn(conn_chats)
+            return False
+        data = cur_chats.fetchone()[0]
+        self.chats_pool.putconn(conn_chats)
+        
+        if data['settings']['publicName'] == 1:
+            return data['name']
+
+        id = self.verifySession(ip, sid)
+        if not id:
+            return False
+        if id not in data['members']+data['invited']:
+            return False
+        return data['name']
+    
+    def handleGroupInvite(self, groupId, sid, action, ip):
+        if action not in ['a', 'd'] and not action.startswith('c_'):
+            return 'invalidAction'
+        
+        id = self.verifySession(ip, sid)
+        if not id:
+            return 'auth'
+        
+        conn_chats, cur_chats = self.connect_chat()
+        try:
+            cur_chats.execute(f'SELECT data FROM {groupId} WHERE number=0')
+        except errors.UndefinedTable:
+            self.chats_pool.putconn(conn_chats)
+            return 'groupId'
+        
+        data = cur_chats.fetchone()[0]
+        apj = data['settings']['approveJoin']
+
+        if action.startswith('c_'):
+            userId = action.split('_')[1]
+            if id not in data['members' if apj == 'anyone' else 'admins' if apj == 'admin' else 'owner'] or userId not in data['invited']:
+                return 'unable'
+            data['invited'].remove(userId)
+
+            cur_chats.execute(f'UPDATE {groupId} SET data=(%s) WHERE number=0', [json.dumps(data)])
+            conn, cur = self.connect_user()
+            cur.execute('SELECT groups FROM users WHERE id=(%s)', [userId])
+            groups = cur.fetchone()[0]
+            groups.pop(groupId)
+            cur.execute('UPDATE users SET groups=(%s) WHERE id=(%s)', [json.dumps(groups), userId])
+        else:
+            if id not in data['invited']:
+                self.chats_pool.putconn(conn_chats)
+                return 'unable'
+
+            if action == 'a':
+                data['members'].append(id)
+                data['invited'].remove(id)
+
+                cur_chats.execute(f'UPDATE {groupId} SET data=(%s) WHERE number=0', [json.dumps(data)])
+
+                conn, cur = self.connect_user()
+                cur.execute('SELECT groups FROM users WHERE id=(%s)', [id])
+                groups = cur.fetchone()[0]
+                groups.update({groupId: 'member'})
+                cur.execute('UPDATE users SET groups=(%s) WHERE id=(%s)', [json.dumps(groups), id])
+            else:
+                data['invited'].remove(id)
+
+                cur_chats.execute(f'UPDATE {groupId} SET data=(%s) WHERE number=0', [json.dumps(data)])
+
+                conn, cur = self.connect_user()
+                cur.execute('SELECT groups FROM users WHERE id=(%s)', [id])
+                groups = cur.fetchone()[0]
+                groups.pop(groupId)
+                cur.execute('UPDATE users SET groups=(%s) WHERE id=(%s)', [json.dumps(groups), id])
+            
+        conn_chats.commit()
+        conn.commit()
+        self.chats_pool.putconn(conn_chats)
+        self.users_pool.putconn(conn)
+
+    def handleJoinRequest(self, groupId, sid, action, ip):
+        if action != 'c' and not action.startswith('a_') and not action.startswith('d_'):
+            return 'invalidAction'
+        
+        id = self.verifySession(ip, sid)
+        if not id:
+            return 'auth'
+        
+        conn_chats, cur_chats = self.connect_chat()
+        try:
+            cur_chats.execute(f'SELECT data FROM {groupId} WHERE number=0')
+        except errors.UndefinedTable:
+            self.chats_pool.putconn(conn_chats)
+            return 'groupId'
+        
+        data = cur_chats.fetchone()[0]
+        apj = data['settings']['approveJoin']
+
+        if action == 'c':
+            if id not in data['waitingForApproval']:
+                self.chats_pool.putconn(conn_chats)
+                return 'unable'
+            data['waitingForApproval'].remove(id)
+
+            cur_chats.execute(f'UPDATE {groupId} SET data=(%s) WHERE number=0', [json.dumps(data)])
+
+            conn, cur = self.connect_user()
+            cur.execute('SELECT groups FROM users WHERE id=(%s)', [id])
+            groups = cur.fetchone()[0]
+            groups.pop(groupId)
+            cur.execute('UPDATE users SET groups=(%s) WHERE id=(%s)', [json.dumps(groups), id])
+        else:
+            userId = action.split('_')[1]
+            if userId not in data['waitingForApproval'] or id not in data['members' if apj == 'anyone' else 'admins' if apj == 'admin' else 'owner']:
+                return 'unable'
+            if action.split('_')[0] == 'a':
+                data['members'].append(userId)
+                data['waitingForApproval'].remove(userId)
+
+                cur_chats.execute(f'UPDATE {groupId} SET data=(%s) WHERE number=0', [json.dumps(data)])
+
+                conn, cur = self.connect_user()
+                cur.execute('SELECT groups FROM users WHERE id=(%s)', [userId])
+                groups = cur.fetchone()[0]
+                groups.update({groupId: 'member'})
+                cur.execute('UPDATE users SET groups=(%s) WHERE id=(%s)', [json.dumps(groups), userId])
+            else:
+                data['waitingForApproval'].remove(userId)
+
+                cur_chats.execute(f'UPDATE {groupId} SET data=(%s) WHERE number=0', [json.dumps(data)])
+
+                conn, cur = self.connect_user()
+                cur.execute('SELECT groups FROM users WHERE id=(%s)', [userId])
+                groups = cur.fetchone()[0]
+                groups.pop(groupId)
+                cur.execute('UPDATE users SET groups=(%s) WHERE id=(%s)', [json.dumps(groups), userId])
+
+        conn_chats.commit()
+        conn.commit()
+        self.chats_pool.putconn(conn_chats)
+        self.users_pool.putconn(conn)
+
+    def getGroupData(self, groupId, sid, ip):
+        id = self.verifySession(ip, sid)
+        if not id:
+            return 'auth'
+        
+        conn_chats, cur_chats = self.connect_chat()
+        try:
+            cur_chats.execute(f'SELECT data FROM {groupId} WHERE number=0')
+        except errors.UndefinedTable:
+            self.chats_pool.putconn(conn_chats)
+            return 'groupId'
+        data = cur_chats.fetchone()[0]
+        self.chats_pool.putconn(conn_chats)
+        if id not in data['members']:
+            return 'unable'
+        return data
+
+    def saveGroupSettings(self, groupId, settings, sid, ip):
+        settings = json.loads(settings)
+        if settings['approveJoin'] not in ['no', 'anyone', 'admin', 'owner'] or settings['disableLink'] not in [0, 1] or settings['publicName'] not in [0, 1] or set(settings.keys()) != {'disableLink', 'publicName', 'approveJoin'}:
+            return 'settings'
+
+        id = self.verifySession(ip, sid)
+        if not id:
+            return 'auth'
+        
+        conn_chats, cur_chats = self.connect_chat()
+        try:
+            cur_chats.execute(f'SELECT data FROM {groupId} WHERE number=0')
+        except errors.UndefinedTable:
+            self.chats_pool.putconn(conn_chats)
+            return 'groupId'
+        data = cur_chats.fetchone()[0]
+        if id != data['owner']:
+            self.chats_pool.putconn(conn_chats)
+            return 'unable'
+
+        data.update({'settings': settings})
+        cur_chats.execute(f'UPDATE {groupId} SET data=(%s) WHERE number=0', [json.dumps(data)])
+        conn_chats.commit()
+        self.chats_pool.putconn(conn_chats)
+        return True
 
 
 db = DB()

@@ -59,9 +59,19 @@ async function login() {
         window.localStorage.setItem('user', JSON.stringify(userData))
         window.localStorage.setItem('sid', sid)
 
-        await new Promise(r => setTimeout(r, 1500))
+        params = (new URL(location)).searchParams;
+        back = params.get('back')
+        console.log(back)
 
-        window.location.href = '/main'
+        await new Promise(r => setTimeout(r, 1000))
+        
+        if(back) {
+            location = back
+        }
+        else {
+           location.href = '/main' 
+        }
+        
     }
     else {
         warning.className = 'text-danger'

@@ -7,7 +7,7 @@ from fastapi import (FastAPI, File, Request, Response, UploadFile, WebSocket,
                      WebSocketDisconnect)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from requests import request
+from starlette.middleware.cors import CORSMiddleware
 
 from server.database import db
 from server.encryption import generateKeys
@@ -19,13 +19,13 @@ templates = Jinja2Templates(directory='templates')
 
 origins = ["*"]
 
-#app.add_middleware(
-#    CORSMiddleware,
-#    allow_origins=origins,
-#    allow_credentials=True,
-#    allow_methods=["*"],
-#    allow_headers=["*"],
-#)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.mount(
     "/static",
@@ -71,7 +71,7 @@ exportedPublicKey = keyPair.public_key().export_key()
 # -------------------------------------HTML Templates-------------------------------------
 @app.get('/')
 def login(req: Request):
-    return templates.TemplateResponse('index.html', {'request': req})
+    return templates.TemplateResponse('login.html', {'request': req})
 
 
 @app.get('/register')
@@ -82,6 +82,10 @@ def register(req: Request):
 @app.get('/main')
 def home(req: Request):
     return templates.TemplateResponse('main.html', {'request': req})
+
+@app.get('/join/{a}')
+def home(req: Request):
+    return templates.TemplateResponse('join.html', {'request': req})
 
 # -------------------------------------Web Sockets----------------------------------------
 
@@ -213,6 +217,58 @@ def handle_friend_req(sid: str, idTo: str, action: str, request: Request):
 def get_messages(sid: str, chatId: str, logIndex: int, request: Request):
     res = db.getMsgs(sid, request.client.host, chatId, logIndex)
     return {'status': 400, 'error': res} if res in ['logIndex', 'noMsgs', 'id', 'auth', 'notM', 'chatId'] else {'status': 200, 'data': res}
+
+@app.post('/api/create_group')
+def create_group(sid, members, name, settings, request: Request):
+    res = db.createGroup(sid, members, name, settings, request.client.host)
+    if res in ['auth', 'name', 'member', 'settings']:
+        return {'status': 400, 'error': res}
+    return {'status': 201, 'data': res}
+
+@app.post('/api/join/{groupId}')
+def join_group(groupId, sid, request: Request):
+    res = db.joinGroupByLink(groupId, sid, request.client.host)
+    if res in ['auth', 'groupId']:
+        return {'status': 400, 'error': res}
+    elif res in ['waiting', 'joined']:
+        return {'status': 200, 'data': res}
+    else:
+        return {'status': 202, 'data': res}
+
+@app.get('/api/get_group_name')
+def get_group_name(groupId, sid, request: Request):
+    res = db.getGroupName(groupId, sid, request.client.host)
+    if not res:
+        return {'status': 400}
+    return {'status': 200, 'data': res}
+
+@app.post('/api/handle_group_invite')
+def handle_group_invite(groupId, sid, action, request: Request):
+    res = db.handleGroupInvite(groupId, sid, action, request.client.host)
+    if res in ['invalidAction', 'auth', 'groupId', 'unable']:
+        return {'status': 400, 'error': res}
+    return {'status': 200}
+
+@app.post('/api/handle_join_request')
+def handle_join_request(groupId, sid, action, request: Request):
+    res = db.handleJoinRequest(groupId, sid, action, request.client.host)
+    if res in ['invalidAction', 'auth', 'groupId', 'unable']:
+        return {'status': 400, 'error': res}
+    return {'status': 200}
+
+@app.get('/api/get_group_data')
+def get_group_data(groupId, sid, request: Request):
+    res = db.getGroupData(groupId, sid, request.client.host)
+    if res in ['auth', 'groupId', 'unable']:
+        return {'status': 400, 'error': res}
+    return {'status': 200, 'data': res}
+
+@app.post('/api/save_group_settings')
+def save_group_settings(groupId, sid, settings, request: Request):
+    res = db.saveGroupSettings(groupId, settings, sid, request.client.host)
+    if res in ['settings', 'auth', 'groupId', 'unable']:
+        return {'status': 400, 'error': res}
+    return {'status': 200}
 
 
 # To run the app: python -m uvicorn server:app --host 0.0.0.0 --reload
