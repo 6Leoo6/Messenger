@@ -588,8 +588,9 @@ function scrollToBottom(scrollPos, scrollable) {
 document.addEventListener('scroll', async function (event) {
     const scrollPos = window.scrollY
     const scrollable = document.documentElement.scrollHeight - window.innerHeight
-    var mainDiv = document.getElementById('main-div')
-    for (child of mainDiv.children) {
+    var dmDiv = document.getElementById('direct-msgs')
+    var grDiv = document.getElementById('group-msgs')
+    for (child of [...dmDiv.children].concat([...grDiv.children])) {
         if (child.hidden == false && child.classList.contains('chat')) {
             chatId = child.id.split('-')[0]
             var scrP = JSON.parse(window.sessionStorage.getItem('scrollPos'))
@@ -1035,7 +1036,6 @@ async function handleJoinRequest(id, action) {
     var res = await fetch(url, { method: "POST" })
     res = await res.json()
     if (res['status'] == 200) {
-        console.log(action)
         if(action.startsWith('d_') || action.startsWith('a_')) {
             document.getElementById(id).parentElement.parentElement.remove()
             return

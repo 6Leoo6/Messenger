@@ -388,7 +388,7 @@ class DB():
             self.chats_pool.putconn(conn)
             return 'logIndex'
         self.chats_pool.putconn(conn)
-        return log
+        return list(sorted(log, key=lambda x: x['i']))
 
     def uploadMedia(self, media_type, img_bytes: bytes, sid, ip):
         p = pathlib.Path(__file__).parent.resolve() / 'media_storage'
